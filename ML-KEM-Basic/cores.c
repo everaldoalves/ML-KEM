@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include "cores.h"
 
+//Função para impressão de mensagens em cores distintas na tela
+
 // Definindo constantes para códigos de cores ANSI
 #define RESET   "\x1b[0m"
 #define RED     "\x1b[31m"
