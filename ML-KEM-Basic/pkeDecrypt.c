@@ -19,9 +19,13 @@ Input: ciphertext c ∈ B^32(duk+dv).
 Output: message m ∈ B^32.  
 ********************************************************************************/
 
+
 void pkeDecrypt(const uint8_t *dkPKE, const uint8_t *c, uint8_t *m) {
-    uint8_t c1[32 * KYBER_DU];
-    uint8_t c2[32 * KYBER_DV];
+    uint16_t tamanhoC1 = 32 * KYBER_DU*KYBER_K;
+    uint16_t tamanhoC2 = 32 * (KYBER_DU * KYBER_K + KYBER_DV) - 32 * KYBER_DU * KYBER_K;
+    uint16_t tamanhodkPKE = 384 * KYBER_K;  
+    uint8_t c1[tamanhoC1];
+    uint8_t c2[tamanhoC2];
     uint16_t u[KYBER_K][KYBER_N];
     uint16_t v[KYBER_N];
     uint16_t s_hat[KYBER_K][KYBER_N];
@@ -29,32 +33,40 @@ void pkeDecrypt(const uint8_t *dkPKE, const uint8_t *c, uint8_t *m) {
 
     // Passo 1 e 2: Extrair c1 e c2 do texto cifrado c
     memcpy(c1, c, sizeof(c1));
-    memcpy(c2, c + 32 * KYBER_DU, sizeof(c2));
+    memcpy(c2, c + tamanhoC1, sizeof(c2));
 
+    printf("\n\n Vetor u : ");
     // Passo 3: Decompress e ByteDecode para u
-    for (int i = 0; i < KYBER_K; i++) {
-        uint16_t temp[KYBER_N]; // Ajustar de acordo com a dimensão esperada
-        byteDecode(c1 + i * (32 * KYBER_DU / KYBER_K), temp, KYBER_DU);
+    uint16_t temp[KYBER_N]; 
+    uint8_t c1_temp[sizeof(c1)/KYBER_K];
+    for (int i = 0; i < KYBER_K; i++) {        
+        memset(temp,0,sizeof(temp)/sizeof(temp[0]));
+        memcpy(c1_temp,c1 + i * (tamanhoC1/KYBER_K),tamanhoC1/KYBER_K);
+        byteDecode(c1_temp, temp, KYBER_DU);
         for (int j = 0; j < KYBER_N; j++) {
-            u[i][j] = decompress_d(temp[j], KYBER_DU);
+            u[i][j] = decompress_d(temp[j], KYBER_DU);            
         }
     }
-
+   
     // Passo 4: Decompress e ByteDecode para v
-    uint16_t temp_v[KYBER_N]; // Ajustar de acordo com a dimensão esperada
+    uint16_t temp_v[KYBER_N]; 
     byteDecode(c2, temp_v, KYBER_DV);
     for (int i = 0; i < KYBER_N; i++) {
         v[i] = decompress_d(temp_v[i], KYBER_DV);
     }
-
+       
+    uint8_t dkPKE_temp[tamanhodkPKE/KYBER_K];
     // Passo 5: ByteDecode para s_hat
     for (int i = 0; i < KYBER_K; i++) {
-        byteDecode(dkPKE + i * (384 * KYBER_K / KYBER_K), s_hat[i], 12); // Usando 12 como d para s_hat
-    }
+        memset(temp,0,sizeof(temp)/sizeof(temp[0]));
+        memcpy(dkPKE_temp,dkPKE + i * (tamanhodkPKE/KYBER_K),tamanhodkPKE/KYBER_K);
+        byteDecode(dkPKE_temp, s_hat[i], 12); 
+    }   
 
-    // Aplica NTT a u e s_hat
-    ntt(u);
-    ntt(s_hat);
+    // Aplica NTT em u
+    for (int i = 0; i < KYBER_K; i++) {
+        ntt(u[i]);
+    }
 
     // Passo 6: Calcula z_hat = ∑j=0^k-1 uˆ[j] ×Tq vˆ[j]
     // Multiplicação NTT de s_hat por u e soma dos resultados
@@ -70,7 +82,7 @@ void pkeDecrypt(const uint8_t *dkPKE, const uint8_t *c, uint8_t *m) {
 
     // Aplica invNTT a z_hat para voltar ao domínio do tempo
     invntt(z_hat);
-
+   
     // Subtrai z_hat de v para obter w
     for (int i = 0; i < KYBER_N; i++) {
         int32_t sub = (v[i] + KYBER_Q - z_hat[i]) % KYBER_Q;
@@ -79,8 +91,7 @@ void pkeDecrypt(const uint8_t *dkPKE, const uint8_t *c, uint8_t *m) {
 
     // Passo 7: Compress e ByteEncode para obter m
     uint16_t compressed_w[KYBER_N];
-    for (int i = 0; i < KYBER_N; i++) {
-        compressed_w[i] = compress_d(w[i], 1); // Comprime cada elemento de w
-    }
+   
     byteEncode(compressed_w, m, 1); // Codifica w comprimido em m
+   
 }

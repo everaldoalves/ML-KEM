@@ -19,12 +19,12 @@ Output: ciphertext c ∈ B^32(duk+dv)
 void calculaU(uint16_t A[KYBER_K][KYBER_K][KYBER_N], uint16_t r_hat[KYBER_K][KYBER_N], uint16_t e1[KYBER_K][KYBER_N], uint16_t u[KYBER_K][KYBER_N]) {
     printf("\nCalculaU");
     uint16_t tempResultado[KYBER_K][KYBER_N] = {{0}};
-    uint16_t tempMultiplicacao[KYBER_N] = {0}; // Agora é um vetor unidimensional.
+    uint16_t tempMultiplicacao[KYBER_N] = {0}; 
 
     for (int i = 0; i < KYBER_K; ++i) {
         for (int k = 0; k < KYBER_K; ++k) {            
-            multiplicaNTT(A[k][i], r_hat[k], tempMultiplicacao); // Corrigido para corresponder à nova assinatura.
-            invntt(tempMultiplicacao); // Corretamente ajustado para invntt.
+            multiplicaNTT(A[k][i], r_hat[k], tempMultiplicacao); 
+            invntt(tempMultiplicacao); 
 
             // Soma os resultados ao tempResultado[i]
             for (int n = 0; n < KYBER_N; ++n) {
@@ -44,7 +44,7 @@ void calculaU(uint16_t A[KYBER_K][KYBER_K][KYBER_N], uint16_t r_hat[KYBER_K][KYB
 
 
 void calculaV(uint16_t t_hat[KYBER_K][KYBER_N], uint16_t r_vector[KYBER_K][KYBER_N], uint16_t e2[KYBER_N], uint16_t mu[KYBER_N], uint16_t v[KYBER_N]) {
-    printf("\nCalculaV");
+    printf("\nCalculaV \n");
     uint16_t temp[KYBER_N] = {0};
     uint16_t v_ntt[KYBER_N] = {0}; // Temporariamente armazena o resultado da soma NTT antes da inversa.
 
@@ -72,39 +72,45 @@ void decompressMu(const uint8_t *m, uint16_t mu[KYBER_N]) {
     uint16_t m_decoded[KYBER_N]; // Buffer temporário para o resultado decodificado
     
     // Decodifica 'm' para um array de inteiros com d=1
-    printf("\n ByteDecode(m,m_decoded,1) m=%02x m_decoded=%d",m,m_decoded);
     byteDecode(m, m_decoded, 1); // byteDecode1 realiza a decodificação com d=1
 
+    printf("\n Elementos decodificados com byteDecode  \n m_decoded[256] : ");
+    for (int i = 0; i < KYBER_N; i++) { 
+        printf("%d ",m_decoded[i]);
+    }
+
     // Decompressão de cada elemento decodificado em 'mu' com d=1
+    printf("\n\n Elementos descomprimidos com decompress_1 : \n");
     for (int i = 0; i < KYBER_N; i++) {
         mu[i] = decompress_d(m_decoded[i], 1);
-        printf("%04x ",mu[i]);
+        printf("%d ",mu[i]);
     }
 }
 
 void generateRandomVectors(const uint8_t *r, uint16_t r_vector[KYBER_K][KYBER_N], uint16_t e1[KYBER_K][KYBER_N], uint16_t e2[KYBER_N], uint8_t N) {
     printf("\nGenerate Random Vectors.");
-    unsigned char prfOutput[64 * KYBER_ETA1]; // Buffer para a saída da PRF
+    unsigned char prfOutput_eta1[64 * KYBER_ETA1] = {0}; // Buffer para a saída da PRF
+    unsigned char prfOutput_eta2[64 * KYBER_ETA2] = {0};
 
     // Geração de r_vector
     for (int i = 0; i < KYBER_K; i++) {
-        PRF(KYBER_ETA1, r, N++, prfOutput);
-        samplePolyCBD(prfOutput, r_vector[i], KYBER_ETA1);
+        PRF(KYBER_ETA1, r, N++, prfOutput_eta1);
+        samplePolyCBD(prfOutput_eta1, r_vector[i], KYBER_ETA1);
     }
 
     // Geração de e1
     for (int i = 0; i < KYBER_K; i++) {
-        PRF(KYBER_ETA2, r, N++, prfOutput);
-        samplePolyCBD(prfOutput, e1[i], KYBER_ETA2);
+        PRF(KYBER_ETA2, r, N++, prfOutput_eta2);
+        samplePolyCBD(prfOutput_eta2, e1[i], KYBER_ETA2);
     }
 
     // Geração de e2
-    PRF(KYBER_ETA2, r, N, prfOutput);
-    samplePolyCBD(prfOutput, e2, KYBER_ETA2);
+    PRF(KYBER_ETA2, r, N, prfOutput_eta2);
+    samplePolyCBD(prfOutput_eta2, e2, KYBER_ETA2);
 }
 
 void compressAndEncode(const uint16_t u[KYBER_K][KYBER_N], const uint16_t v[KYBER_N], uint8_t c1[], uint8_t c2[]) {
-        printf("\nCompressAndEncode");
+        printf("\nCompressAndEncoding.....\n");
     // Compressão e codificação de u para c1
     for (int i = 0; i < KYBER_K; i++) {
         uint16_t compressedU[KYBER_N];
@@ -135,11 +141,11 @@ void pkeEncrypt(const uint8_t *ekPKE, const uint8_t *m, const uint8_t *r, uint8_
     uint16_t v[KYBER_N] = {0};
     uint16_t a_hat[KYBER_N] = {0};
     uint8_t rho[32], c1[KYBER_K * KYBER_N * KYBER_DU / 8], c2[KYBER_N * KYBER_DV / 8];
-    uint16_t mu[KYBER_N]; // Decodificar e descomprimir 'm' para 'mu'  
-    unsigned char md[EVP_MAX_MD_SIZE];   // Vetor para armazenar o resultado de SHAKE128(ρ|i|j)  
+    uint16_t mu[KYBER_N];                // Decodificar e descomprimir 'm' para 'mu'  
+    unsigned char md[512];   // Vetor para armazenar o resultado de SHAKE128(ρ|i|j)  
     uint8_t N = 0;
 
-    printf("\n\nExibindo os parâmetros recebidos... \n chave de encriptação %d: ", sizeof(ekPKE));
+    printf("\n\nExibindo os parâmetros recebidos... \n chave de encriptação %lu: ", sizeof(ekPKE));
     for (int i = 0; i < 800; i++)
     {
         printf("%02x ", ekPKE[i]);
@@ -160,18 +166,7 @@ void pkeEncrypt(const uint8_t *ekPKE, const uint8_t *m, const uint8_t *r, uint8_
     {
             printf("%02x " ,ekPKE_Subarray[i]);
     }
-
-    
-    printf("\n\n Exibição do vetor t_hat antes de byteDecode\n");
-    for (int i = 0; i < KYBER_K; i++)
-    {
-        for (int j = 0; j < KYBER_N; j++)
-        {
-           printf("%d " ,t_hat[i][j]);
-        }
-                       
-    }
-    
+   
     printf("\n\nPreparando para entrar em ByteDecode.....");
     // 2.4 Decodificando para t_hat com d=12
     uint8_t auxiliar[384];
@@ -192,34 +187,36 @@ void pkeEncrypt(const uint8_t *ekPKE, const uint8_t *m, const uint8_t *r, uint8_
     printf("\n\n Exibição do vetor t_hat após byteDecode\n");
     for (int i = 0; i < KYBER_K; i++)
     {
+        printf("Linha %d : ",i);
         for (int j = 0; j < KYBER_N; j++)
         {
            printf("%d " ,t_hat[i][j]);
         }
-                       
+        printf("\n");               
     }
     
+    printf("\n\n Vetor auxiliar após segunda rodada, ou seja, apenas os dados de input para byteDecode da linha 2 de  t_hat: ");
     for (int j = 0; j < KYBER_N; j++)
-        {
-           printf("%d " ,auxiliar[j]);
-        }
+    {
+        printf("%d " ,auxiliar[j]);
+    }
     
     
     // Passo 3: Extração de rho
     memcpy(rho, ekPKE + 384 * KYBER_K, 32);
     printf("\nExecutou memcpy para rho.\n");
     
-    printf("\n ekpke: ");
+    printf("\n ekpke :");
     for (int i=384*KYBER_K; i<384*KYBER_K+32; i++) {
         printf("%02x ",ekPKE[i]);        
     }
     
-    printf("\n rho: ");
+    printf("\n rho :    ");
     for (int i=0; i<32; i++) {     
-        printf("%d ", rho[i]);
+        printf("%02x ", rho[i]);
     }
 
-    printf("\nIniciando a geração da Matriz A ...");
+    printf("\n\nIniciando a geração da Matriz A ...");
     // Passo 4-8: Geração da matriz A
     for (int i = 0; i < KYBER_K; i++) {
         unsigned char i_char = (unsigned char)i;    
@@ -237,10 +234,10 @@ void pkeEncrypt(const uint8_t *ekPKE, const uint8_t *m, const uint8_t *r, uint8_
            printf("\n\n");
         }
     }
-    printf("\n\nMatriz A gerada....\n");
+    printf("Matriz A gerada....\n");
               
     // Uso da função generateRandomVectors para gerar r_vector, e1, e2
-    generateRandomVectors(r, r_vector, e1, e2, 0); // N inicializado como 0
+    generateRandomVectors(r, r_vector, e1, e2, 0); // Nonce inicializado como 0
 
     // Passo 18: Aplicação de NTT a r
     // Aplicação de NTT a r_vector antes de computeU e computeV
@@ -278,7 +275,7 @@ int main() {
         printf("%02x ", pk[i]);
         
      }
-     printf("\n %d Bytes gerados", sizeof(chaves1.ek));
+     printf("\n %lu Bytes gerados", sizeof(chaves1.ek));
 
     // Gerar mensagem aleatória (simulando uma mensagem a ser encriptada)
     uint8_t mensagem[32] = {0};
@@ -287,7 +284,7 @@ int main() {
     for (int i=0; i<sizeof(mensagem); i++) {
         printf("%02x ", mensagem[i]);
     }
-    printf("\n %d Bytes gerados", sizeof(mensagem));
+    printf("\n %lu Bytes gerados", sizeof(mensagem));
 
     // Gerar vetor de aleatoriedade r
     uint8_t r[32] = {0};
@@ -296,12 +293,12 @@ int main() {
     for (int i=0; i<sizeof(r); i++) {
         printf("%02x ", r[i]);
     }
-    printf("\n %d Bytes gerados", sizeof(r));
+    printf("\n %lu Bytes gerados", sizeof(r));
 
     // Preparar buffer para o texto cifrado
     uint8_t textoCifrado[32 * (KYBER_DU*KYBER_K + KYBER_DV)] = {0};   
-    printf("\n\n Vetor textoCifrado inicializado para %d Bytes", sizeof(textoCifrado));
-    printf("\n\n Chave de Encriptação pk possui %d bytes ", sizeof(pk));
+    printf("\n\n Vetor textoCifrado inicializado para %lu Bytes", sizeof(textoCifrado));
+    printf("\n\n Chave de Encriptação pk possui %lu bytes ", sizeof(pk));
   
     // Executar a função encrypt  
     printf("\n\nPreparando para encriptar a mensagem...");   
@@ -334,7 +331,7 @@ int main() {
         printf("%02x", textoCifrado[i]);
         if ((i + 1) % 32 == 0) printf("\n");
     }
-    printf("\n %d Bytes gerados", sizeof(textoCifrado));
+    printf("\n %lu Bytes gerados", sizeof(textoCifrado));
 
     return 0;
 }

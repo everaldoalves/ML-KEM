@@ -52,11 +52,17 @@ chavesPKE pkeKeyGen() {
 
     uint8_t N = 0;        
     uint16_t f[KYBER_N] = {0};
-    uint16_t a_hat[KYBER_N] = {0};
-    uint16_t s[KYBER_K][KYBER_N] = {{0}};
-    uint16_t e[KYBER_K][KYBER_N] = {{0}};
+
     uint16_t A[KYBER_K][KYBER_K][KYBER_N] = {{{0}}};
+
+    uint16_t s[KYBER_K][KYBER_N] = {{0}};    
+
+    uint16_t e[KYBER_K][KYBER_N] = {{0}};   
+
+    uint16_t a_hat[KYBER_N] = {0}; 
+
     uint16_t t[KYBER_K][KYBER_N] = {{0}}; 
+
     unsigned char md[EVP_MAX_MD_SIZE];   // Vetor para armazenar o resultado de SHAKE128(ρ|i|j)    
   
 
@@ -65,7 +71,7 @@ chavesPKE pkeKeyGen() {
 
     // Aplica a função G em d para obter rho e sigma
     G(d, sizeof(d), rho, sigma);
-        
+    
     // Gera os elementos da matriz A^ pertencente a (Zq256)^k*k
     for (int i=0; i < KYBER_K; i++) {             
         unsigned char i_char = (unsigned char)i;        
@@ -81,6 +87,7 @@ chavesPKE pkeKeyGen() {
            }          
         }    
     }
+    
 
    // Gera os elementos do vetor s
    for (int i=0; i < KYBER_K; i++)    {                      // generate s ∈ (Zq256)^k              
@@ -100,16 +107,15 @@ chavesPKE pkeKeyGen() {
             e[i][j] = f[j];                                 // e[i] ∈ Zq256 sampled from CBD PRF takes a parameter η ∈ {2,3}  PRFn1
             N = N + 1;
         }
-    }
+    }   
 
-    
     // Transforma "s" e "e" para o domínio NTT
     for (int i=0; i < KYBER_K; i++) {        
         ntt(s[i]);                         // NTT is run k times (once for each coordinate of s)
         ntt(e[i]);                         // NTT is run k times    
     }  
 
-    calculaT_hat(A,s,e,t);          // t = A ◦ s + e   noisy linear system in NTT domain        
+    calculaT_hat(A,s,e,t);          // t = A ◦ s + e   noisy linear system in NTT domain         
 
     // Geração das CHAVES
     for (int i=0; i < KYBER_K; i++) {         
@@ -121,7 +127,7 @@ chavesPKE pkeKeyGen() {
     }
 
     // Concatena rho ao final de ek - byteEncode(t[i])||rho;   
-    memcpy(chaves.ek + (384 * KYBER_K), rho, 32);
+    memcpy(chaves.ek + (384 * KYBER_K), rho, 32);    
 
     return chaves; 
       

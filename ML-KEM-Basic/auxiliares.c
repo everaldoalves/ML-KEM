@@ -4,6 +4,7 @@
 #include <string.h>      // Para uso de memcpy
 #include "parametros.h"
 #include "auxiliares.h"
+#include <math.h>
 #include <openssl/sha.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h> 
@@ -96,6 +97,7 @@ int rounding(int numerator, int denominator) {
     }
 }
 
+
 // Função Compress_d 
 uint16_t compress_d(uint16_t x, uint16_t d) {
     uint64_t product = ((uint64_t)x * (1U << d) + KYBER_Q / 2) / KYBER_Q; // Adiciona meio para arredondamento
@@ -110,6 +112,7 @@ uint16_t decompress_d(uint16_t y, uint16_t d) {
     uint16_t decompressed = (uint16_t)(numerator / (1U << d));
     return decompressed;
 }
+
 
 // Função G - SHA-3 512
 void G(const unsigned char *input, size_t input_len, unsigned char *a, unsigned char *b) {
@@ -210,7 +213,7 @@ void XOF(unsigned char *rho, unsigned char i, unsigned char j, unsigned char *md
 
     // Finalize o hash e obtenha o resultado
     unsigned int md_len;
-    if (EVP_DigestFinalXOF(mdctx, md, 512) != 1) {
+    if (EVP_DigestFinalXOF(mdctx, md, 1024) != 1) {
         fprintf(stderr, "ERRO ao finalizar o hash\n");
         return;
     }
