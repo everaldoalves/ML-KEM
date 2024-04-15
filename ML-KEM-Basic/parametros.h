@@ -5,6 +5,7 @@
 #define KYBER_N 256
 #define KYBER_Q 3329
 #define KYBER_Z 17
+#define ENCAPS_SIZE (384 * KYBER_K + 32)  // Tamanho da chave de Encapsulamento
 
 
 // Variáveis globais dependendo do valor de KYBER_K

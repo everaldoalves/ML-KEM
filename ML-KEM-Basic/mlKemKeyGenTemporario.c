@@ -1,16 +1,11 @@
 #include <stdio.h>
-#include <locale.h>
-#include <stdlib.h>
 #include <string.h>
 #include "amostragem.h"
 #include "auxiliares.h"
 #include "ntt.h"
 #include "parametros.h"
 #include "pkeKeyGen.h"
-#include "pkeEncrypt.h"
 #include "mlKemKeyGen.h"
-#include <openssl/sha.h>
-#include <openssl/evp.h>
 
 /*******************************************************************************
 Teste da implementação do Algorithm 15 ML-KEM.KeyGen()
@@ -19,8 +14,31 @@ Output: Encapsulation key ek ∈ B^384k+32.
 Output: Decapsulation key dk ∈ B^768k+96
 ********************************************************************************/
 
+void exibeChavesKEM(chavesKEM chaves) {
+    printf("\n\n Chaves KEM \n chave de encapsulamento : ");
+    for (int i = 0; i < sizeof(chaves.ek)/sizeof(chaves.ek[0]); i++)
+    {
+        printf("%02x", chaves.ek[i]);
+    }
+    printf("\n \nchave de desencapsulamento : ");
+    for (int i = 0; i < sizeof(chaves.dk)/sizeof(chaves.dk[0]); i++)
+    {
+        printf("%02x", chaves.dk[i]);
+    }
+}void exibeChavesPKE(chavesPKE chaves) {
+    printf("\n Chaves PKE \n chave pública : ");
+    for (int i = 0; i < sizeof(chaves.ek)/sizeof(chaves.ek[0]); i++)
+    {
+        printf("%02x", chaves.ek[i]);
+    }
+    printf("\n \nchave privada : ");
+    for (int i = 0; i < sizeof(chaves.dk)/sizeof(chaves.dk[0]); i++)
+    {
+        printf("%02x", chaves.dk[i]);
+    }
+}
 
-chavesKEM mlKemKeyGen() {    
+chavesKEM mlKemKeyGenTemporario() {    
     uint8_t z[32] = {0};
     generateRandomBytes(z,32);
     uint16_t tamanhoChaveEK = 384 * KYBER_K + 32;
@@ -28,6 +46,7 @@ chavesKEM mlKemKeyGen() {
  
     chavesPKE chavesPKE = {0};  // ekPKE ∈ B^384k+32. dkPKE ∈ B^384k.     
     chavesPKE = pkeKeyGen();  
+    exibeChavesPKE(chavesPKE);
 
     chavesKEM chavesKEM = {0};
     memcpy(chavesKEM.ek + 0,chavesPKE.ek,tamanhoChaveEK);  // A chave de encapsulamento é a pke.ek
@@ -49,6 +68,13 @@ chavesKEM mlKemKeyGen() {
 
     // Concatena com z
     memcpy(chavesKEM.dk + (tamanhoChaveDK + tamanhoChaveEK + 32), z, 32);
+    exibeChavesKEM(chavesKEM);
 
     return (chavesKEM);
+}
+
+
+int main() {
+    printf("Teste da implementação da função ML-KEM-KEYGEN() \n");
+    mlKemKeyGenTemporario();
 }

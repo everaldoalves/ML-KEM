@@ -275,6 +275,9 @@ def constantTimeSelectOnEquality(a, b, ifEq, ifNeq):
 def InnerKeyGen(seed, params):
     assert len(seed) == 32
     rho, sigma = G(seed)
+    print("\n semente geração da chave de Encriptação: ", seed.hex())
+    print("\n rho : ", rho.hex())
+    print("\n sigma : ", sigma.hex())
     A = sampleMatrix(rho, params.k)
     s = sampleNoise(sigma, params.eta1, 0, params.k)
     e = sampleNoise(sigma, params.eta1, params.k, params.k)
@@ -289,43 +292,34 @@ def InnerKeyGen(seed, params):
 def InnerEnc(pk, msg, seed, params):
     assert len(msg) == 32
     tHat = DecodeVec(pk[:-32], params.k, 12)
+    print("\n tHat SEM NTT = ")
     rho = pk[-32:]
-    A = sampleMatrix(rho, params.k)
+    print("\n rho : ",rho.hex())
+    A = sampleMatrix(rho, params.k)    
     r = sampleNoise(seed, params.eta1, 0, params.k)
     e1 = sampleNoise(seed, eta2, params.k, params.k)
     e2 = sampleNoise(seed, eta2, 2*params.k, 1).ps[0]
     rHat = r.NTT()
+    print("\n rHat com NTT : ")
     u = A.T().MulNTT(rHat).InvNTT() + e1
+    print("\n u : ",u )
     m = Poly(Decode(msg, 1)).Decompress(1)
+    print("\n m = ", m)
     v = tHat.DotNTT(rHat).InvNTT() + e2 + m
+    print("\n v = ", v)
     c1 = u.Compress(params.du).Encode(params.du)
+    print("\n c1 = ", c1.hex())
     c2 = v.Compress(params.dv).Encode(params.dv)
+    print("\n c2 = ", c2.hex())
     return c1 + c2
 
 def InnerDec(sk, ct, params):
     split = params.du * params.k * n // 8
     c1, c2 = ct[:split], ct[split:]
-    print("\n c1 = ",c1.hex())
-    print("\n c2 = ",c2.hex())
     u = DecodeVec(c1, params.k, params.du).Decompress(params.du)
-    print("\n Vetor u : ", u)
     v = DecodePoly(c2, params.dv).Decompress(params.dv)
-    print("\n Vetor v : ", v)
     sHat = DecodeVec(sk, params.k, 12)
-    print("\n Vetor sHat : ", sHat)
-    sHatNTT = sHat.NTT()
-    print("\nsHatNTT : ",sHatNTT)
-    uNTT = u.NTT()
-    print("\n uNTT : ", uNTT)
-    zhat = sHat.DotNTT(u.NTT()).InvNTT()
-    print("\n zHat após INVNTT : ", zhat)
-    compressed_w = (v - sHat.DotNTT(u.NTT()).InvNTT()).Compress(1)
-    print("\n compressed_w : ", compressed_w)
-    msgBytes = (v - sHat.DotNTT(u.NTT()).InvNTT()).Compress(1).Encode(1)
-    #msgBytes = msgBytes.encode('ascii')  # Convertendo para bytes    	
-    print("\n msgBytes : ", msgBytes.hex())
-    return (v - sHat.DotNTT(u.NTT()).InvNTT()).Compress(1).Encode(1)	
-
+    return (v - sHat.DotNTT(u.NTT()).InvNTT()).Compress(1).Encode(1)
 
 def KeyGen(seed, params):
     assert len(seed) == 64
@@ -336,12 +330,13 @@ def KeyGen(seed, params):
 
 def Enc(pk, seed, params):
     assert len(seed) == 32
-    print("\n pk = ", pk)
+    print("\n pk = ", pk.hex())
     m = H(seed)
-    print("\n m = ",m)
+    print("\n m = ",m.hex())
     Kbar, r = G(m + H(pk))
-    print("\n r = ",r)
+    print("\n r = ",r.hex())	
     ct = InnerEnc(pk, m, r, params)
+    print("\n ct = ", ct.hex())
     K = KDF(Kbar + H(ct))
     return (ct, K)
 
@@ -365,37 +360,38 @@ def main():
     # código desenvolvido para teste da implementação do IETF referente ao round3 do processo de padronização do NIST
 
     # Passo 1: Geração de Chaves
-    seed = get_random_bytes(32)  # Geração de uma semente aleatória
+    #seed = get_random_bytes(32)  # Geração de uma semente aleatória
     params = params512  # Escolhendo os parâmetros para usar
-    
+    seed_hex = "cfc0d0b6218a41725a5de7f3eae11dd88b6e5b1661bacfca4729f54e6f578b03"
+    seed = bytes.fromhex(seed_hex)
     print("Gerando chaves para IND-CPA...")
     pk, sk = InnerKeyGen(seed, params)
     # Convertendo cada byte em uma string hexadecimal e juntando com vírgulas
     pk_hex = ', '.join(f"{byte:02x}" for byte in pk)
     sk_hex = ', '.join(f"{byte:02x}" for byte in sk)
-    print("\n Chave pública (pk):", pk.hex())
-    print("\n Chave privada (sk):", sk.hex())
+    print("\nChave pública (pk):", pk_hex)
+    print("\nChave privada (sk):", sk_hex)
+    #print("\n Chave pública (pk):", pk.hex())
+    #print("\n Chave privada (sk):", sk.hex())
     
     # Passo 2: Encriptação e Decriptação
     #mensagem = "mensagem secreta a ser decifrada".encode()
     seed_enc = get_random_bytes(32)  # Semente para encriptação
-    print("seed_enc = ",seed_enc)
     
     # Criando uma mensagem específica de 32 bytes
     mensagem_texto = "Esta mensagem tem exatamente 32b"  # 32 caracteres ASCII
     msg = mensagem_texto.encode('ascii')  # Convertendo para bytes
-    print("msg : ",msg)
-    print("\n msg em bytes : ",msg.hex())
     
     print("\nEncriptando mensagem...")
     ct = InnerEnc(pk, msg, seed_enc, params)
+    print("\n seed_enc = ",seed_enc.hex())
     print("\n Ciphertext (ct):", ct.hex())
     
     print("\n Decriptando mensagem...")
     mensagem_recuperada = InnerDec(sk, ct, params)
     print("\n Mensagem recuperada:", mensagem_recuperada)
     
-    print("\n\n Gerando chaves para IND-CCA2...")
+    print("\n Gerando chaves para IND-CCA2...")
     seed = get_random_bytes(64)
     pk, sk = KeyGen(seed, params)
     print("\n Chave pública (pk):", pk.hex())

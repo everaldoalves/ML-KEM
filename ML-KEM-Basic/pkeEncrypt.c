@@ -75,8 +75,7 @@ void decompressMu(const uint8_t *m, uint16_t mu[KYBER_N]) {
     
     uint16_t m_decoded[KYBER_N]; // Buffer temporário para o resultado decodificado
     
-    // Decodifica 'm' para um array de inteiros com d=1
-    
+    // Decodifica 'm' para um array de inteiros com d=1    
     byteDecode(m, m_decoded, 1); // byteDecode1 realiza a decodificação com d=1
 
     // Decompressão de cada elemento decodificado em 'mu' com d=1
@@ -86,23 +85,25 @@ void decompressMu(const uint8_t *m, uint16_t mu[KYBER_N]) {
 }
 
 void generateRandomVectors(const uint8_t *r, uint16_t r_vector[KYBER_K][KYBER_N], uint16_t e1[KYBER_K][KYBER_N], uint16_t e2[KYBER_N], uint8_t N) {
-    unsigned char prfOutput[64 * KYBER_ETA1]; // Buffer para a saída da PRF
+    unsigned char prfOutput_eta1[64 * KYBER_ETA1]; // Buffer para a saída da PRFn1
+    unsigned char prfOutput_eta2[64 * KYBER_ETA2]; // Buffer para a saída da PRFn2
 
     // Geração de r_vector
     for (int i = 0; i < KYBER_K; i++) {
-        PRF(KYBER_ETA1, r, N++, prfOutput);
-        samplePolyCBD(prfOutput, r_vector[i], KYBER_ETA1);
+        PRF(KYBER_ETA1, r, N++, prfOutput_eta1);
+        samplePolyCBD(prfOutput_eta1, r_vector[i], KYBER_ETA1);
     }
 
     // Geração de e1
     for (int i = 0; i < KYBER_K; i++) {
-        PRF(KYBER_ETA2, r, N++, prfOutput);
-        samplePolyCBD(prfOutput, e1[i], KYBER_ETA2);
+        PRF(KYBER_ETA2, r, N++, prfOutput_eta2);
+        samplePolyCBD(prfOutput_eta2, e1[i], KYBER_ETA2);
     }
 
     // Geração de e2
-    PRF(KYBER_ETA2, r, N, prfOutput);
-    samplePolyCBD(prfOutput, e2, KYBER_ETA2);
+    memset(prfOutput_eta2,0,64*KYBER_ETA2); // resetando o output
+    PRF(KYBER_ETA2, r, N, prfOutput_eta2);
+    samplePolyCBD(prfOutput_eta2, e2, KYBER_ETA2);
 }
 
 void compressAndEncode(const uint16_t u[KYBER_K][KYBER_N], const uint16_t v[KYBER_N], uint8_t c1[], uint8_t c2[]) {
@@ -123,52 +124,13 @@ void compressAndEncode(const uint16_t u[KYBER_K][KYBER_N], const uint16_t v[KYBE
     byteEncode(compressedV, c2, KYBER_DV);
 }
 
-void exibeVetorPolinomios(uint16_t vetor[2][256], char* nomeVetor){
-    printf("\n Vetor %s : ", nomeVetor);
-    for (int i = 0; i < KYBER_K; i++)
-    {
-        for (int j = 0; j < KYBER_N; j++)
-        {
-            printf("%d ,",vetor[i][j]);
-        }
-        printf("\n");
-    }
-    
-}
-
-void verificaCalculoT(uint16_t t1[2][256],uint16_t t2[2][256]) {
-     if((memcmp(t1[0],t2[0],sizeof(t1[0]))==0) && (memcmp(t1[1],t2[1],sizeof(t1[1]))==0)) {
-        printf("\n\n Vetor t foi calculado corretamente!!!!");
-    }
-    else {
-        printf("\n\n Falha no cálculo do vetor t");
-    }
-}
-
-void exibeChaves(chavesPKE chaves) {
-    printf("Chaves \n chave pública : ");
-    for (int i = 0; i < sizeof(chaves.ek)/sizeof(chaves.ek[0]); i++)
-    {
-        printf("%02x", chaves.ek[i]);
-    }
-    printf("\n \nchave privada : ");
-    for (int i = 0; i < sizeof(chaves.dk)/sizeof(chaves.dk[0]); i++)
-    {
-        printf("%02x", chaves.dk[i]);
-    }
-}
 
 void pkeEncrypt(const uint8_t *ekPKE, const uint8_t *m, const uint8_t *r, uint8_t *c) {
     uint16_t t_hat[KYBER_K][KYBER_N] = {{0}};
-
     uint16_t A[KYBER_K][KYBER_K][KYBER_N] =  {{{0}}}; 
-
     uint16_t r_vector[KYBER_K][KYBER_N] = {{0}};
-
     uint16_t e1[KYBER_K][KYBER_N] = {{0}};
-
     uint16_t e2[KYBER_N] = {0};
-
     uint16_t u[KYBER_K][KYBER_N] = {{0}};
     uint16_t v[KYBER_N] = {0};
     uint16_t a_hat[KYBER_N] = {0};
@@ -208,20 +170,16 @@ void pkeEncrypt(const uint8_t *ekPKE, const uint8_t *m, const uint8_t *r, uint8_
     memcpy(rho, ekPKE + 384 * KYBER_K, 32);            
 
     // Passo 4-8: Geração da matriz A
-    for (int i = 0; i < KYBER_K; i++) {
-        unsigned char i_char = (unsigned char)i;    
-        for (int j = 0; j < KYBER_K; j++) {       
-           memset(md, 0, sizeof(md));              // Reseta o vetor md                  
-           unsigned char j_char = (unsigned char)j;            
-           XOF(rho, i_char, j_char, md);               
+    for (uint8_t i = 0; i < KYBER_K; i++) {        
+        for (uint8_t j = 0; j < KYBER_K; j++) {       
+           memset(md, 0, sizeof(md));              // Reseta o vetor md                                     
+           XOF(rho, j, i, md);               
            memset(a_hat, 0, sizeof(a_hat));      // Reinicializa a_hat para garantir que seja único em cada iteração
            sampleNTT(md, a_hat);                // Preenche a_hat com os coeficientes NTT                                                        
            for (int k=0; k < KYBER_N; k++) {                         
                 // Copia a_hat para a terceira dimensão da matriz A
-                A[i][j][k] = a_hat[k];     
-                printf("%d ", A[i][j][k]) ;             
+                A[i][j][k] = a_hat[k];                             
            } 
-           printf("\n\n");
         }
     }
 

@@ -4,6 +4,8 @@
 #include <string.h>
 #include "amostragem.h"
 #include "auxiliares.h"
+#include "pkeKeyGen.h"
+#include "pkeEncrypt.h"
 #include "ntt.h"
 #include "parametros.h"
 #include "pkeDecrypt.h"
@@ -12,15 +14,22 @@
 #include <openssl/evp.h>
 
 /*******************************************************************************
-Algoritmo 14 - Decrypt() -  ML-KEM FIPS 203 ipd
+Teste da implementação do Algoritmo 14 - Decrypt() -  ML-KEM FIPS 203 ipd
 Uses the decryption key to decrypt a ciphertext.
 Input: decryption key dkPKE ∈ B^384k.
 Input: ciphertext c ∈ B^32(duk+dv).
 Output: message m ∈ B^32.  
 ********************************************************************************/
 
+void exibeMensagem(uint8_t msg[32], char* texto) {
+    printf("\n Mensagem %s  : ", texto);
+    for (int i = 0; i < 32; i++)
+    {
+        printf(" %02x", msg[i]);
+    }  
+}
 
-void pkeDecrypt(const uint8_t *dkPKE, const uint8_t *c, uint8_t *m) {
+void pkeDecryptCompleto(const uint8_t *dkPKE, const uint8_t *c, uint8_t *m) {
     uint16_t tamanhoC1 = 32 * KYBER_DU*KYBER_K;
     uint16_t tamanhoC2 = 32 * (KYBER_DU * KYBER_K + KYBER_DV) - 32 * KYBER_DU * KYBER_K;
     uint16_t tamanhodkPKE = 384 * KYBER_K;  
@@ -35,7 +44,6 @@ void pkeDecrypt(const uint8_t *dkPKE, const uint8_t *c, uint8_t *m) {
     memcpy(c1, c, sizeof(c1));
     memcpy(c2, c + tamanhoC1, sizeof(c2));
 
-    
     // Passo 3: Decompress e ByteDecode para u
     uint16_t temp[KYBER_N]; 
     uint8_t c1_temp[sizeof(c1)/KYBER_K];
@@ -44,11 +52,11 @@ void pkeDecrypt(const uint8_t *dkPKE, const uint8_t *c, uint8_t *m) {
         memcpy(c1_temp,c1 + i * (tamanhoC1/KYBER_K),tamanhoC1/KYBER_K);
         byteDecode(c1_temp, temp, KYBER_DU);
         for (int j = 0; j < KYBER_N; j++) {
-            u[i][j] = decompress_d(temp[j], KYBER_DU);            
+            u[i][j] = decompress_d(temp[j], KYBER_DU);
         }
     }
-   
-    // Passo 4: Decompress e ByteDecode para v
+
+     // Passo 4: Decompress e ByteDecode para v
     uint16_t temp_v[KYBER_N]; 
     byteDecode(c2, temp_v, KYBER_DV);
     for (int i = 0; i < KYBER_N; i++) {
@@ -61,13 +69,14 @@ void pkeDecrypt(const uint8_t *dkPKE, const uint8_t *c, uint8_t *m) {
         memset(temp,0,sizeof(temp)/sizeof(temp[0]));
         memcpy(dkPKE_temp,dkPKE + i * (tamanhodkPKE/KYBER_K),tamanhodkPKE/KYBER_K);
         byteDecode(dkPKE_temp, s_hat[i], 12); 
-    }   
-
-    // Aplica NTT em u
-    for (int i = 0; i < KYBER_K; i++) {
-        ntt(u[i]);
     }
 
+    // Aplica NTT a u e s
+    for (int i = 0; i < KYBER_K; i++) {
+        ntt(u[i]);
+        //ntt(s_hat[i]);
+    }
+  
     // Passo 6: Calcula z_hat = ∑j=0^k-1 uˆ[j] ×Tq vˆ[j]
     // Multiplicação NTT de s_hat por u e soma dos resultados
     uint16_t z_hat[KYBER_N] = {0}; // Inicializa z_hat com zeros
@@ -81,8 +90,8 @@ void pkeDecrypt(const uint8_t *dkPKE, const uint8_t *c, uint8_t *m) {
     }
 
     // Aplica invNTT a z_hat para voltar ao domínio do tempo
-    invntt(z_hat);
-   
+    invntt(z_hat);   
+
     // Subtrai z_hat de v para obter w
     for (int i = 0; i < KYBER_N; i++) {
         int32_t sub = (v[i] + KYBER_Q - z_hat[i]) % KYBER_Q;
@@ -91,7 +100,33 @@ void pkeDecrypt(const uint8_t *dkPKE, const uint8_t *c, uint8_t *m) {
 
     // Passo 7: Compress e ByteEncode para obter m
     uint16_t compressed_w[KYBER_N];
-   
-    byteEncode(compressed_w, m, 1); // Codifica w comprimido em m
-   
+    for (int i = 0; i < KYBER_N; i++) {
+        compressed_w[i] = compress_d(w[i], 1); // Comprime cada elemento de w
+    }
+    byteEncode(compressed_w, m, 1); // Codifica w comprimido em m  
+}
+
+
+int main() {
+    printf("\n\n Teste de geração de chaves, encriptação e decriptação \n");
+
+    // Gerando as chaves
+    chavesPKE chavesPKE;
+
+    // Gerando uma mensagem aleatória
+    uint8_t m[32] = {0};
+    generateRandomBytes(m,32);
+
+    uint8_t r[32] = {0};
+    generateRandomBytes(r,32);
+
+    uint8_t c[32*(KYBER_DU*KYBER_K+KYBER_DV)] = {0};
+
+    // Encriptando a mensagem
+    pkeEncrypt(chavesPKE.ek,m,r,c);
+    exibeMensagem(m,"Original  ");
+
+    uint8_t mensagemDecifrada[32] = {0};
+    pkeDecryptCompleto(chavesPKE.dk,c,mensagemDecifrada);
+    exibeMensagem(mensagemDecifrada,"Decriptada");
 }

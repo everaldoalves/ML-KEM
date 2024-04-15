@@ -15,13 +15,14 @@ If the input is a stream of uniformly random bytes, the output is a uniformly ra
 Input  : byte stream B ∈ B^∗ 
 Output : array aˆ ∈ Zq256
 */
-void sampleNTT(const unsigned char B[], uint16_t a[]) {
+void sampleNTT(const unsigned char B[], uint16_t a[]) {    
+
     int i = 0;
     int j = 0;    
 
     while (j < 256) {
         int d1 = B[i] + 256 * (B[i + 1] % 16);
-        int d2 = (B[i + 1] / 16) + 16 * B[i + 2];
+        int d2 = (B[i + 1] / 16) + 16 * B[i + 2];      
 
         if (d1 < KYBER_Q) {            
             a[j] = d1;
@@ -31,10 +32,10 @@ void sampleNTT(const unsigned char B[], uint16_t a[]) {
         if (d2 < KYBER_Q && j < 256) {            
             a[j] = d2;
             j++;
-        }
+        }        
 
         i += 3;
-    }
+    }  
 
 }
 
@@ -57,5 +58,11 @@ void samplePolyCBD(unsigned char B[], uint16_t f[], uint8_t eta) {
         }       
         f[i] = ((x - y) % KYBER_Q + KYBER_Q) % KYBER_Q; // Calcula os coeficientes do polinômio        
     }
+    /*
+    printf("\n \n Exibição do vetor f dentro da função samplePolyCBD :\n");
+    for (int i=0; i< 256; i++) {
+        printf(" %d", f[i]);
+    }
+    */
 }
 

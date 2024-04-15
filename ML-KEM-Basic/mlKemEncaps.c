@@ -18,7 +18,18 @@ Output: shared key K ∈ B32.
 Output: ciphertext c ∈ B32(duk+dv)
 ********************************************************************************/
 
+// Função para verificar o tamanho da chave de encapsulamento
+int isValidEncapsSize(const uint8_t* ek, size_t size) {
+    return (size == ENCAPS_SIZE);
+}
+
 encaps mlKemEncaps(uint8_t encapsKey[384*KYBER_K+32]) {
+    // Verifica se o tamanho da chave de encapsulamento é válido
+    if (!isValidEncapsSize(encapsKey, ENCAPS_SIZE)) {
+        fprintf(stderr, "Erro: Tamanho da chave de encapsulamento inválido.\n");
+        exit(EXIT_FAILURE);
+    }
+
     uint8_t m[32] = {0};
     generateRandomBytes(m,32);
 
