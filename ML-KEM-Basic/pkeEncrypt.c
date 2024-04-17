@@ -70,12 +70,12 @@ void calculaV(uint16_t t_hat[KYBER_K][KYBER_N], uint16_t r_vector[KYBER_K][KYBER
 }
 
 
-
 void decompressMu(const uint8_t *m, uint16_t mu[KYBER_N]) {
     
     uint16_t m_decoded[KYBER_N]; // Buffer temporário para o resultado decodificado
     
-    // Decodifica 'm' para um array de inteiros com d=1    
+    // Decodifica 'm' para um array de inteiros com d=1
+    
     byteDecode(m, m_decoded, 1); // byteDecode1 realiza a decodificação com d=1
 
     // Decompressão de cada elemento decodificado em 'mu' com d=1
@@ -83,6 +83,7 @@ void decompressMu(const uint8_t *m, uint16_t mu[KYBER_N]) {
         mu[i] = decompress_d(m_decoded[i], 1);    
     }
 }
+
 
 void generateRandomVectors(const uint8_t *r, uint16_t r_vector[KYBER_K][KYBER_N], uint16_t e1[KYBER_K][KYBER_N], uint16_t e2[KYBER_N], uint8_t N) {
     unsigned char prfOutput_eta1[64 * KYBER_ETA1]; // Buffer para a saída da PRFn1
@@ -98,13 +99,14 @@ void generateRandomVectors(const uint8_t *r, uint16_t r_vector[KYBER_K][KYBER_N]
     for (int i = 0; i < KYBER_K; i++) {
         PRF(KYBER_ETA2, r, N++, prfOutput_eta2);
         samplePolyCBD(prfOutput_eta2, e1[i], KYBER_ETA2);
-    }
+    }    
 
     // Geração de e2
     memset(prfOutput_eta2,0,64*KYBER_ETA2); // resetando o output
     PRF(KYBER_ETA2, r, N, prfOutput_eta2);
-    samplePolyCBD(prfOutput_eta2, e2, KYBER_ETA2);
+    samplePolyCBD(prfOutput_eta2, e2, KYBER_ETA2);  
 }
+
 
 void compressAndEncode(const uint16_t u[KYBER_K][KYBER_N], const uint16_t v[KYBER_N], uint8_t c1[], uint8_t c2[]) {
     // Compressão e codificação de u para c1
@@ -126,11 +128,11 @@ void compressAndEncode(const uint16_t u[KYBER_K][KYBER_N], const uint16_t v[KYBE
 
 
 void pkeEncrypt(const uint8_t *ekPKE, const uint8_t *m, const uint8_t *r, uint8_t *c) {
-    uint16_t t_hat[KYBER_K][KYBER_N] = {{0}};
-    uint16_t A[KYBER_K][KYBER_K][KYBER_N] =  {{{0}}}; 
+    uint16_t t_hat[KYBER_K][KYBER_N] = {{0}};    
+    uint16_t A[KYBER_K][KYBER_K][KYBER_N] = {{{0}}};
     uint16_t r_vector[KYBER_K][KYBER_N] = {{0}};
     uint16_t e1[KYBER_K][KYBER_N] = {{0}};
-    uint16_t e2[KYBER_N] = {0};
+    uint16_t e2[KYBER_N] = {0};     
     uint16_t u[KYBER_K][KYBER_N] = {{0}};
     uint16_t v[KYBER_N] = {0};
     uint16_t a_hat[KYBER_N] = {0};
@@ -167,34 +169,33 @@ void pkeEncrypt(const uint8_t *ekPKE, const uint8_t *m, const uint8_t *r, uint8_
 
     
     // Passo 3: Extração de rho
-    memcpy(rho, ekPKE + 384 * KYBER_K, 32);            
-
+    memcpy(rho, ekPKE + 384 * KYBER_K, 32);
+    
     // Passo 4-8: Geração da matriz A
     for (uint8_t i = 0; i < KYBER_K; i++) {        
         for (uint8_t j = 0; j < KYBER_K; j++) {       
-           memset(md, 0, sizeof(md));              // Reseta o vetor md                                     
+           memset(md, 0, sizeof(md));              // Reseta o vetor md                                  
            XOF(rho, j, i, md);               
            memset(a_hat, 0, sizeof(a_hat));      // Reinicializa a_hat para garantir que seja único em cada iteração
            sampleNTT(md, a_hat);                // Preenche a_hat com os coeficientes NTT                                                        
            for (int k=0; k < KYBER_N; k++) {                         
                 // Copia a_hat para a terceira dimensão da matriz A
-                A[i][j][k] = a_hat[k];                             
-           } 
+                A[i][j][k] = a_hat[k];                               
+           }            
         }
-    }
+    }  
 
-    // Uso da função generateRandomVectors para gerar r_vector, e1, e2
+   // Uso da função generateRandomVectors para gerar r_vector, e1, e2
     generateRandomVectors(r, r_vector, e1, e2, 0); // N inicializado como 0
-    
 
     // Passo 18: Aplicação de NTT a r
     // Aplicação de NTT a r_vector antes de computeU e computeV
     for (int i = 0; i < KYBER_K; i++) {
         ntt(r_vector[i]);
-    }
+    }   
 
     // Passo 19: Calcular u
-    calculaU(A, r_vector, e1, u);
+    calculaU(A, r_vector, e1, u);    
 
     // 20: µ ← Decompress1(ByteDecode1(m)))    
     decompressMu(m, mu);

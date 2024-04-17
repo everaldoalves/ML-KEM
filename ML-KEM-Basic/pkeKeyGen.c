@@ -78,13 +78,13 @@ void verificaCalculoT(uint16_t t1[2][256],uint16_t t2[2][256]) {
     }
 }
 
-void exibeChaves(chavesPKE chaves) {
-    printf("Chaves \n chave pública : ");
+void exibeChaves(chavesPKE chaves) {  
+    printf("chave ek : ");
     for (int i = 0; i < sizeof(chaves.ek)/sizeof(chaves.ek[0]); i++)
     {
         printf("%02x", chaves.ek[i]);
     }
-    printf("\n \nchave privada : ");
+    printf("\n \nchave dk : ");
     for (int i = 0; i < sizeof(chaves.dk)/sizeof(chaves.dk[0]); i++)
     {
         printf("%02x", chaves.dk[i]);

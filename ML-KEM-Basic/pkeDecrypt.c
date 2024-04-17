@@ -34,7 +34,6 @@ void pkeDecrypt(const uint8_t *dkPKE, const uint8_t *c, uint8_t *m) {
     // Passo 1 e 2: Extrair c1 e c2 do texto cifrado c
     memcpy(c1, c, sizeof(c1));
     memcpy(c2, c + tamanhoC1, sizeof(c2));
-
     
     // Passo 3: Decompress e ByteDecode para u
     uint16_t temp[KYBER_N]; 
@@ -47,23 +46,23 @@ void pkeDecrypt(const uint8_t *dkPKE, const uint8_t *c, uint8_t *m) {
             u[i][j] = decompress_d(temp[j], KYBER_DU);            
         }
     }
-   
+  
     // Passo 4: Decompress e ByteDecode para v
     uint16_t temp_v[KYBER_N]; 
     byteDecode(c2, temp_v, KYBER_DV);
     for (int i = 0; i < KYBER_N; i++) {
-        v[i] = decompress_d(temp_v[i], KYBER_DV);
+        v[i] = decompress_d(temp_v[i], KYBER_DV);     
     }
-       
+   
     uint8_t dkPKE_temp[tamanhodkPKE/KYBER_K];
     // Passo 5: ByteDecode para s_hat
     for (int i = 0; i < KYBER_K; i++) {
         memset(temp,0,sizeof(temp)/sizeof(temp[0]));
         memcpy(dkPKE_temp,dkPKE + i * (tamanhodkPKE/KYBER_K),tamanhodkPKE/KYBER_K);
         byteDecode(dkPKE_temp, s_hat[i], 12); 
-    }   
+    }
 
-    // Aplica NTT em u
+    // Aplica NTT a u e s
     for (int i = 0; i < KYBER_K; i++) {
         ntt(u[i]);
     }
@@ -81,17 +80,19 @@ void pkeDecrypt(const uint8_t *dkPKE, const uint8_t *c, uint8_t *m) {
     }
 
     // Aplica invNTT a z_hat para voltar ao domínio do tempo
-    invntt(z_hat);
-   
+    invntt(z_hat);  
+
     // Subtrai z_hat de v para obter w
     for (int i = 0; i < KYBER_N; i++) {
         int32_t sub = (v[i] + KYBER_Q - z_hat[i]) % KYBER_Q;
         w[i] = sub < 0 ? sub + KYBER_Q : sub; // Corrige se sub for negativo
     }
-
+    
     // Passo 7: Compress e ByteEncode para obter m
     uint16_t compressed_w[KYBER_N];
-   
-    byteEncode(compressed_w, m, 1); // Codifica w comprimido em m
-   
+    for (int i = 0; i < KYBER_N; i++) {
+        compressed_w[i] = compress_d(w[i], 1); // Comprime cada elemento de w        
+    }
+    byteEncode(compressed_w, m, 1); // Codifica w comprimido em m 
 }
+

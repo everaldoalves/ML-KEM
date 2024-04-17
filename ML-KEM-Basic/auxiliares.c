@@ -213,7 +213,7 @@ void XOF(unsigned char *rho, unsigned char i, unsigned char j, unsigned char *md
 
     // Finalize o hash e obtenha o resultado
     unsigned int md_len;
-    if (EVP_DigestFinalXOF(mdctx, md, 5024) != 1) {
+    if (EVP_DigestFinalXOF(mdctx, md, 1024) != 1) {
         fprintf(stderr, "ERRO ao finalizar o hash\n");
         return;
     }
