@@ -1,5 +1,4 @@
-<img src="https://github.com/everaldoalves/ML-KEM/raw/master/ML-KEM-Basic/chaveCompartilhadaKyberGitHub.jpeg" alt="Imagem de Fundo">
-
+<img src="https://github.com/everaldoalves/ML-KEM/raw/master/ML-KEM-Basic/chaveCompartilhadaKyberGitHub.jpeg" alt="Imagem de Fundo" width="200" height="auto">
 
 # ML-KEM
 
