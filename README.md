@@ -1,3 +1,5 @@
+<img src="https://github.com/everaldoalves/ML-KEM/compare/main...master#diff-d63d3c67e37431280e5a3d3e8deab943fbe4904cd42328d4f2abe791a868add5" alt="Imagem de Fundo" style="background: no-repeat center/cover;">
+
 # ML-KEM
 
 Repositório criado para implementação do ML-KEM com base no FIPS 203 ipd.
