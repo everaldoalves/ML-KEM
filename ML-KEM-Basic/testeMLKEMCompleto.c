@@ -38,14 +38,14 @@ Output: shared key K ∈ B32
 ********************************************************************************/
 
 void comparaChavesK(uint8_t chaveKAlice[32], uint8_t chaveKBob[32]) {
-    printf("\n\n Comparando as chaves K de Alice e Bob ...\n");
+    printf("\n\n Comparando as chaves K de Alice e Bob ...");
     for (int i = 0; i < 32; i++)    {
         if (chaveKAlice[i]!=chaveKBob[i]) {
             printColor("ERRO!!!! As chaves não coincidem! \n",RED);            
             return;
         }      
     }      
-    printColor("\n   Sucesso! As chaves são iguais! \n",CYANBOLD);          
+    printColor("\n   Sucesso! As chaves são iguais! \n\n",CYANBOLD);          
 }
 
 void exibeChaveK(uint8_t chaveK[32]) {
@@ -106,7 +106,8 @@ void mlKemDecapsCompleto(const uint8_t *c, const uint8_t *dk, uint8_t *K_linha) 
 }
 
 int main() {
-    printColor("\n Teste do esquema ML-KEM \n\n Geração de chaves.... \n",YELLOW);   
+    printColor("\n  ****   TESTE DO MECANISMO DE ENCAPSULAMENTO DE CHAVES ML-KEM ****  \n\n Geração de chaves.... \n",GREEN);   
+    printf("Chaves geradas com sucesso!\n");
 
     // Gerando as chaves
     chavesKEM chavesKEM;
@@ -114,13 +115,13 @@ int main() {
 
     // Encapsulando a chave
     encaps encaps;
-    printf("\n\n Encapsulando a chave K ....");
-    encaps = mlKemEncaps(chavesKEM.ek);
+    printColor("\n\n Encapsulando a chave K ....",MAGENTA);
+    encaps = mlKemEncaps(chavesKEM.ek,sizeof(chavesKEM.ek));
     exibeChaveK(encaps.K);
 
     uint8_t K[32] = {0};
     uint8_t K_linha[32] = {0};
-    printf("\n\n Desencapsulando a chave K ....");
+    printColor("\n\n Desencapsulando a chave K ....",CYAN);
     mlKemDecapsCompleto(encaps.c,chavesKEM.dk,K_linha);
     exibeChaveK(K_linha);
 

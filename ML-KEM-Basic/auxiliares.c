@@ -4,10 +4,13 @@
 #include <string.h>      // Para uso de memcpy
 #include "parametros.h"
 #include "auxiliares.h"
+#include "amostragem.h"
 #include <math.h>
 #include <openssl/sha.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h> 
+#include "randombytes.h"
+#include "fips202.h"
 
 /*******************************************************************
 Funções referentes aos algorítmos auxiliares do ML-KEM FIPS 203 ipd
@@ -47,6 +50,7 @@ Encodes an array of d-bit integers into a byte array, for 1 ≤ d ≤ 12.
 Input: integer array F ∈ Zm256, where m = 2^d if d < 12 and m = q if d = 12.
 Output: byte array B ∈ B^32d
 */
+/*
 void byteEncode(const uint16_t F[], uint8_t B[], int d) {
     int num_bits = 256 * d; // Total de bits
     uint8_t b[num_bits]; // Array temporário para armazenar os bits
@@ -60,12 +64,37 @@ void byteEncode(const uint16_t F[], uint8_t B[], int d) {
 
     bitsToBytes(b, B, num_bits); // Converte os bits para bytes
 }
+*/
+
+void byteEncode(const uint16_t F[], uint8_t B[], int d) {
+    uint32_t tmp = 0;
+    int bit_count = 0;
+
+    int pos = 0; // posição no array de bytes B
+    for (int i = 0; i < 256; i++) {
+        uint16_t a = F[i] % (d == 12 ? KYBER_Q : (1 << d));
+        tmp |= ((uint32_t)a << bit_count);
+        bit_count += d;
+
+        while (bit_count >= 8) {
+            B[pos++] = tmp & 0xFF; // extrai o byte menos significativo
+            tmp >>= 8;             // descarta os bits já processados
+            bit_count -= 8;
+        }
+    }
+
+    if (bit_count > 0) { // Se sobrarem bits que não completaram um byte
+        B[pos] = tmp & 0xFF;
+    }
+}
+
 
 /*
 Decodes a byte array into an array of d-bit integers, for 1 ≤ d ≤ 12.
 Input: byte array B ∈ B^32d.
 Output: integer array F ∈ Zm256, where m = 2^d if d < 12 and m = q if d = 12.
 */
+/*
 void byteDecode(const uint8_t B[], uint16_t F[], int d) {
     int num_bits = 256 * d; // Total de bits
     uint8_t b[num_bits]; // Array temporário para armazenar os bits
@@ -80,6 +109,24 @@ void byteDecode(const uint8_t B[], uint16_t F[], int d) {
         // Removido aplicação de módulo aqui, pois F[i] é construído dentro do limite.
     }
 
+}
+*/
+
+void byteDecode(const uint8_t B[], uint16_t F[], int d) {
+    uint32_t tmp = 0;
+    int bits_in_tmp = 0;
+
+    int byte_pos = 0;
+    for (int i = 0; i < 256; i++) {
+        while (bits_in_tmp < d) {
+            tmp |= ((uint32_t)B[byte_pos++] << bits_in_tmp);
+            bits_in_tmp += 8;
+        }
+
+        F[i] = tmp & ((1 << d) - 1); // Assume d <= 12
+        tmp >>= d;
+        bits_in_tmp -= d;
+    }
 }
 
 
@@ -182,6 +229,7 @@ The function XOF takes one 32-byte input and two 1-byte inputs. It produces a va
 B32 ×B×B → B∗, and it shall be instantiated as
 XOF(ρ,i, j) := SHAKE128(ρ∥i∥ j)
 */
+
 void XOF(unsigned char *rho, unsigned char i, unsigned char j, unsigned char *md) {
     unsigned char input[34]; // Concatenação de rho, i e j (34 bytes)
     
@@ -212,7 +260,7 @@ void XOF(unsigned char *rho, unsigned char i, unsigned char j, unsigned char *md
     }
 
     // Finalize o hash e obtenha o resultado
-    unsigned int md_len;
+    //unsigned int md_len;
     if (EVP_DigestFinalXOF(mdctx, md, 1024) != 1) {
         fprintf(stderr, "ERRO ao finalizar o hash\n");
         return;
@@ -221,6 +269,87 @@ void XOF(unsigned char *rho, unsigned char i, unsigned char j, unsigned char *md
     // Libere o contexto do hash
     EVP_MD_CTX_free(mdctx);
 }
+
+void XOF_per_row_OLD(unsigned char *rho, unsigned char row, unsigned char *md, size_t md_size) {
+    unsigned char input[33]; // Concatenação de rho e row (33 bytes)
+
+    // Copia os primeiros 32 bytes de rho
+    memcpy(input, rho, 32);
+
+    // Adiciona o valor da linha
+    input[32] = row;
+
+    // Inicialize o contexto do hash
+    EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
+    if (mdctx == NULL) {
+        fprintf(stderr, "Erro ao criar o contexto do hash\n");
+        return;
+    }
+
+    // Inicialize o hash SHAKE128
+    if (EVP_DigestInit_ex(mdctx, EVP_shake128(), NULL) != 1) {
+        EVP_MD_CTX_free(mdctx);
+        fprintf(stderr, "Erro ao inicializar o hash\n");
+        return;
+    }
+
+    // Atualize o hash com os dados de entrada
+    if (EVP_DigestUpdate(mdctx, input, sizeof(input)) != 1) {
+        EVP_MD_CTX_free(mdctx);
+        fprintf(stderr, "Erro ao atualizar o hash\n");
+        return;
+    }
+
+    // Finalize o hash e obtenha o resultado
+    if (EVP_DigestFinalXOF(mdctx, md, md_size) != 1) {
+        EVP_MD_CTX_free(mdctx);
+        fprintf(stderr, "ERRO ao finalizar o hash\n");
+        return;
+    }
+
+    // Libere o contexto do hash
+    EVP_MD_CTX_free(mdctx);
+}
+
+void XOF_per_row(unsigned char *rho, unsigned char row, unsigned char *md, size_t md_size) {
+    EVP_MD_CTX *mdctx;
+    unsigned char input[33]; // Entrada de 32 bytes de rho + 1 byte da linha
+
+    // Configuração do contexto de hash
+    mdctx = EVP_MD_CTX_new();
+    if (mdctx == NULL) {
+        fprintf(stderr, "Erro ao criar o contexto do hash\n");
+        return;
+    }
+
+    memcpy(input, rho, 32);
+    input[32] = row;
+
+    // Inicialização do XOF SHAKE128
+    if (!EVP_DigestInit_ex(mdctx, EVP_shake128(), NULL)) {
+        EVP_MD_CTX_free(mdctx);
+        fprintf(stderr, "Erro ao inicializar SHAKE128\n");
+        return;
+    }
+
+    // Processamento do input
+    if (!EVP_DigestUpdate(mdctx, input, sizeof(input))) {
+        EVP_MD_CTX_free(mdctx);
+        fprintf(stderr, "Erro ao processar input\n");
+        return;
+    }
+
+    // Extração dos dados de saída
+    if (!EVP_DigestFinalXOF(mdctx, md, md_size)) {
+        EVP_MD_CTX_free(mdctx);
+        fprintf(stderr, "Erro ao finalizar XOF\n");
+        return;
+    }
+
+    // Liberação do contexto de hash
+    EVP_MD_CTX_free(mdctx);
+}
+
 
 /*
 Função PRF - Shake256 utilizando openssl
@@ -261,3 +390,53 @@ void generateRandomBytes(unsigned char *buffer, int length) {
     }
 }
 
+void geraMatrizA(uint8_t rho[32], uint16_t A[KYBER_K][KYBER_K][KYBER_N]) {
+    // Supõe que cada linha de A precisa de um buffer suficiente para gerar todos os elementos dessa linha.
+    // O buffer precisa ser suficientemente grande para lidar com a rejeição do sampleNTT.
+    unsigned char md[KYBER_K * 3 * KYBER_N]; // Tamanho estimado do buffer para cada linha
+
+    for (int i = 0; i < KYBER_K; i++) {
+        XOF_per_row(rho, i, md, sizeof(md)); // Gera dados suficientes para toda a linha i de uma só vez
+
+        // Processa o buffer md para preencher cada coluna j da linha i da matriz A
+        for (int j = 0; j < KYBER_K; j++) {
+            // Cada coluna j usa uma parte específica do buffer
+            // A função sampleNTT assume que há dados suficientes para lidar com a rejeição.
+            sampleNTT(md + j * 3 * KYBER_N, A[i][j]); 
+        }
+    }
+}
+
+void geraMatrizAOtimizada(uint8_t rho[32], uint16_t A[KYBER_K][KYBER_K][KYBER_N]) {
+    // Alinha a alocação de memória para otimização com NEON
+    unsigned char *md = aligned_alloc(16, KYBER_K * 3 * KYBER_N);
+    if (!md) {
+        fprintf(stderr, "Falha na alocação de memória\n");
+        return;
+    }
+
+    for (int i = 0; i < KYBER_K; i++) {
+        XOF_per_row(rho, i, md, KYBER_K * 3 * KYBER_N);
+
+        for (int j = 0; j < KYBER_K; j++) {
+            // Chama a função otimizada com NEON para processamento dos dados
+            //sampleNTT_neon(md + j * 3 * KYBER_N, A[i][j],sizeof(md));
+            sampleNTT_neon(md + j * 3 * KYBER_N, A[i][j]);
+        }
+    }
+
+    free(md); // Libera a memória alocada
+}
+
+
+// Função de redução de Barrett
+int16_t barrett_reduce1(int16_t a) {
+  int16_t t;
+  const int16_t v = ((1<<26) + KYBER_Q/2)/KYBER_Q;
+
+  t  = ((int32_t)v*a + (1<<25)) >> 26;
+  t *= KYBER_Q;
+  return a - t;
+}
+
+   

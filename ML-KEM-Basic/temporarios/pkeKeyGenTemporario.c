@@ -1,17 +1,15 @@
 #include <stdio.h>
-#include <stdbool.h>
 #include <locale.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include "amostragem.h"
 #include "auxiliares.h"
 #include "ntt.h"
 #include "parametros.h"
 #include "pkeKeyGen.h"
-#include "fips202.h"
 #include <openssl/sha.h>
 #include <openssl/evp.h>
+#include <stdbool.h>
 
 /*************************************************************************
 Teste da imnplementação do Algoritmo 12 - KeyGen() -  ML-KEM FIPS 203 ipd
@@ -264,6 +262,10 @@ chavesPKE pkeKeyGen() {
         ntt(s[i]);                         // NTT is run k times (once for each coordinate of s)
         ntt(e[i]);                         // NTT is run k times    
     }  
+
+    printf("\n Vetores s e e após NTT :\n");
+    exibeVetorPolinomios(s, "s : ");
+    exibeVetorPolinomios(e, "e : ");
 
     calculaT_hat(A,s,e,t);          // t = A ◦ s + e   noisy linear system in NTT domain       
 

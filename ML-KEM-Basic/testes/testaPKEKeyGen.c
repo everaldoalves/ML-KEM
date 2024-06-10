@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "amostragem.h"
-#include "auxiliares.h"
-#include "ntt.h"
-#include "parametros.h"
-#include "pkeKeyGen.h"
+#include "../amostragem.h"
+#include "../auxiliares.h"
+#include "../ntt.h"
+#include "../parametros.h"
+#include "../pkeKeyGen.h"
 #include <openssl/sha.h>
 #include <openssl/evp.h>
 
@@ -29,7 +29,8 @@ void imprimirChaves(const uint8_t chave[], size_t tamanho, const char* rotulo) {
 int main() {
 
     chavesPKE chavesCriptograficas;
-    chavesCriptograficas = pkeKeyGen();
+    chavesCriptograficas = pkeKeyGen();   
+
     imprimirChaves(chavesCriptograficas.ek, 384 * KYBER_K + 32, "Chave de Encriptação");
     imprimirChaves(chavesCriptograficas.dk, 384 * KYBER_K, "Chave de Decriptação"); 
     

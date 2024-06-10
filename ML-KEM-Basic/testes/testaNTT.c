@@ -1,3 +1,4 @@
+#include <arm_neon.h>
 #include <stdio.h>
 #include <locale.h>
 #include <stdlib.h>
@@ -5,87 +6,357 @@
 #include <stdint.h>
 #include <time.h>
 #include "cores.h"
-#include "ntt.h"
 #include "parametros.h"
+#include <arm_neon.h>
 
 /*********************************************************************************
 TESTE das Funções referentes aos algorítmos NTT do ML-KEM FIPS 203 ipd
 Input: array f ∈ Zq256.   ▷ the coeffcients of the input polynomial KYBER_Q
 Output: array fˆ ∈ Zq256 
+Utiliza uma implementação não performática, porém correta para realizar a compara-
+ção dos resultados
 *********************************************************************************/
 
+// Define a estrutura para armazenar um par de inteiros
+typedef struct {
+    int c0;
+    int c1;
+} nt;
 
-void geraElementosParaMatriz(uint16_t matriz[KYBER_K][KYBER_K]) {    
-    for (int i = 0; i < KYBER_K; i++) {
-        for (int j = 0; j < KYBER_K; j++) {
-           matriz[i][j] = rand() % KYBER_Q;
-        }
-    }    
+/*********************************************************************************
+Funções referentes à implementação CORRETA
+Implementação A
+*********************************************************************************/
+
+// Calcula a^b mod q
+int power(int x, int y) { 
+    int result = 1;  
+    while (y > 0) {
+        result = (result * x) % KYBER_Q;
+        y--;
+    }
+    return (result < 0) ? result + KYBER_Q : result;
 }
 
-void geraElementosParaVetor(uint16_t vetor[KYBER_K][KYBER_N]) {
-    for (int i = 0; i < KYBER_K; i++) {      
-        for (int j=0; j < KYBER_N; j++) {
-            vetor[i][j] = rand() % KYBER_Q;
-        }
-    }    
+// Calcula o bit reverso
+int BitRev7(int i) {
+    int reverse = 0;
+    for (int j = 0; j < 7; j++) {
+        reverse = (reverse << 1) | (i & 1);
+        i >>= 1;
+    }
+    return reverse % KYBER_Q;
 }
 
-// Esta função só está aqui para ajudar a preencher os vetores com números cuja NTT é conhecida. Pode ser removida
-void geraDoidoElementosParaVetor(uint16_t vetor[KYBER_K][KYBER_N]) {
-    for (int i = 0; i < KYBER_K; i++) {              
-        for (int j=0; j < KYBER_N; j++) {
-            if (i==1) {
-                vetor[i][j] = j;
-            }
-            else {
-                if (j==0 || j==1) {
-                    vetor[i][j] = 1;
-                }
-                else {
-                    vetor[i][j] = 0;
-                }
-            }
-        }
-    }    
-}
-// Idem a anterior para auxiliar no cálculo da multiplicação com valores conhedidos ou seja a inversão dos valores gerados na função anterior
-void inverteElementosDoido(uint16_t vetor[KYBER_K][KYBER_N]) {
-    int aux[KYBER_N];
-    for (int i=0; i< KYBER_K; i++) {
-        for (int j=0; j < KYBER_N; j++) {
-            if (i==0) {
-                aux[j] = vetor[i][j];
-                vetor[i][j] = vetor[i+1][j];
-            }
-            else {
-                vetor[i][j] = aux[j];    
+/*
+Computes the NTT representation fˆ of the given polynomial f ∈ Rq.
+Input: array f ∈ Zq256. ▷ the coeffcients of the input polynomial 
+Output: array fˆ ∈ Zq256. ▷ the coeffcients of the NTT of the input polynomial 
+*/
+void nttA(uint16_t f[KYBER_N]) {
+    int len, start, j, k = 1;
+    uint16_t t, zeta;
+
+    for (len = 128; len >= 2; len /= 2) {
+        for (start = 0; start < KYBER_N; start += 2 * len) {
+            zeta = power(KYBER_Z, BitRev7(k)); 
+            k++;
+            for (j = start; j < start + len; j++) {
+                t = (zeta * f[j + len]) % KYBER_Q;
+                f[j + len] = (f[j] + KYBER_Q - t) % KYBER_Q;
+                f[j] = (f[j] + t) % KYBER_Q;
             }
         }
     }
 }
 
-void exibeVetor(uint16_t vetor[KYBER_K][KYBER_N]) {
-    printf("\n \x1b[97;1m Exibição do Vetor de %d posições e %d elementos : \x1b[0m", KYBER_K,KYBER_N);
-    for(int i=0; i < KYBER_K; i++) {     
-        printf("\n \x1b[33m Elementos da posição %d : \x1b[0m", i);
-        for (int j=0; j < KYBER_N; j++) {
-            printf("%5d ", vetor[i][j]);            
+/*
+Computes the polynomial f ∈ Rq corresponding to the given NTT representation fˆ ∈ Tq.
+Input:  array fˆ ∈ Zq256. ▷ the coeffcients of input NTT representation 
+Output: array f ∈ Zq256. ▷ the coeffcients of the inverse-NTT of the input 
+*/
+void invnttA(uint16_t f[KYBER_N]) {
+    int len, start, j, k = 127;
+    uint16_t t, zeta;
+   // printf("INVNTTA - zeta = ");
+    for (len = 2; len <= 128; len *= 2) {
+        for (start = 0; start < KYBER_N; start += 2 * len) {
+            zeta = power(KYBER_Z, BitRev7(k)); 
+            //printf("INVNTTA - zeta = %d \n",zeta);
+            k--;
+            for (j = start; j < start + len; j++) {
+                t = f[j];
+                f[j] = (t + f[j + len]) % KYBER_Q;
+                f[j + len] = (zeta * (KYBER_Q + f[j + len] - t)) % KYBER_Q;
+            }
+        }
+    }
+
+    // Normalização
+    for (j = 0; j < KYBER_N; j++) {
+        f[j] = (f[j] * 3303) % KYBER_Q; // 3303 é o inverso de 256 mod KYBER_Q
+    }
+}
+// Verifica se a NTT e a INTT correspondem
+void validaTransformadaA(uint16_t vetor[KYBER_N]) {
+    int vetorAux[KYBER_N];
+    int aux=0;
+    for (int i =0; i < KYBER_K; i++) {         
+        vetorAux[i] = vetor[i];
+         
+    }
+
+    nttA(vetor);    
+    invnttA(vetor);
+    
+
+    for (int j=0; j < KYBER_N; j++) {
+        if (vetor[j]!=vetorAux[j]) {
+            printf("\n\n Atenção! \n vetorA[%d]!=vetorA'[%d] %d!=%d \n Lamento, mas Transformada INCORRETA!!!",j,j,vetor[j],vetorAux[j]);
+            aux =1;
+        }
+    }   
+    
+    if (aux==0) {
+        printf("\n\nTransformada Correta!!!");
+    }
+}
+
+
+/*
+Computes the product of two degree-one polynomials with respect to a quadratic modulus.
+Input:  a0,a1,b0,b1 ∈ Zq. ▷ the coeffcients of a0 + a1X and b0 + b1X
+Input:  γ ∈ Zq. ▷ the modulus is X^2 −γ
+Output: c0,c1 ∈ Zq. ▷ the coeffcients of the product of the two polynomials 
+*/
+nt baseCaseMultiplicaA(uint16_t a0, uint16_t a1, uint16_t b0, uint16_t b1, uint16_t y) {
+    nt result;
+    result.c0 = ((a0 * b0) % KYBER_Q + ((a1 * b1) % KYBER_Q * y) % KYBER_Q) % KYBER_Q;
+    result.c1 = ((a0 * b1) % KYBER_Q + (a1 * b0) % KYBER_Q) % KYBER_Q;
+    return result;
+}
+
+
+/*
+Computes the product (in the ring Tq) of two NTT representations.
+Input:  Two arrays fˆ ∈ Zq256 and gˆ ∈ Zq256. ▷ the coeffcients of two NTT representations 
+Output: An array h^ ∈ Zq256. ▷ the coeffcients of the product of the inputs
+*/
+void multiplicaNTTA(const uint16_t f[KYBER_N], const uint16_t g[KYBER_N], uint16_t h[KYBER_N]) {   
+
+    for (int j=0; j<128; j++) {
+            nt result = baseCaseMultiplicaA(f[2*j],f[2*j+1],g[2*j],g[2*j+1],power(KYBER_Z,(2*BitRev7(j)+1)));
+            h[2*j] = result.c0;
+            h[2*j+1] = result.c1;
+    }
+       
+}
+
+/*********************************************************************************
+Funções referentes à implementação em teste
+Implementação B
+*********************************************************************************/
+
+/*********************************************************************************
+Implementação otimizada para ARMv8
+Funções referentes aos algorítmos NTT do ML-KEM FIPS 203 ipd
+Input: array f ∈ ZKYBER_Q256.   ▷ the coeffcients of the input polynomial KYBER_Q
+Output: array fˆ ∈ ZKYBER_Q256 
+*********************************************************************************/
+
+// ζ^BitRev7(i)
+const uint16_t zetas[128] = {1729, 2580, 3289, 2642, 630, 1897, 848, 1062, 1919, 193, 797, 
+    2786, 3260, 569, 1746, 296, 2447, 1339, 1476, 3046, 56, 2240, 
+    1333, 1426, 2094, 535, 2882, 2393, 2879, 1974, 821, 289, 331, 
+    3253, 1756, 1197, 2304, 2277, 2055, 650, 1977, 2513, 632, 2865, 
+    33, 1320, 1915, 2319, 1435, 807, 452, 1438, 2868, 1534, 2402, 2647, 2617, 1481, 648, 2474, 
+    3110, 1227, 910, 17, 2761, 583, 2649, 1637, 723, 2288, 1100, 1409,
+    2662, 3281, 233, 756, 2156, 3015, 3050, 1703, 1651, 2789, 1789, 1847, 
+    952, 1461, 2687, 939, 2308, 2437, 2388, 733, 2337, 268, 641, 1584, 2298, 
+    2037, 3220, 375, 2549, 2090, 1645, 1063, 319, 2773, 757, 2099, 561, 2466, 
+    2594, 2804, 1092, 403, 1026, 1143, 2150, 2775, 886, 1722, 1212, 1874, 1029, 
+    2110, 2935, 885, 2154};
+
+// ζ^2*BitRev7(i)+1 
+const uint16_t zetas2[128] = {17, 3312, 2761, 568, 583, 2746, 2649, 680, 1637, 1692, 723, 2606, 2288, 1041, 1100, 2229, 1409, 1920, 2662, 667, 3281, 48, 233, 3096, 756, 2573, 2156, 
+1173, 3015, 314, 3050, 279, 1703, 1626, 1651, 1678, 2789, 540, 1789, 1540, 1847, 1482, 952, 2377, 1461, 1868, 2687, 642, 939, 2390, 2308, 1021, 2437, 892, 2388, 941, 733, 2596, 2337, 
+992, 268, 3061, 641, 2688, 1584, 1745, 2298, 1031, 2037, 1292, 3220, 109, 375, 2954, 2549, 780, 2090, 1239, 1645, 1684, 1063, 2266, 319, 3010, 2773, 556, 757, 2572, 2099, 1230, 561, 
+2768, 2466, 863, 2594, 735, 2804, 525,1092, 2237, 403, 2926, 1026, 2303, 1143, 2186, 2150, 1179, 2775, 554, 886, 2443, 1722, 1607, 1212, 2117, 1874, 1455, 1029, 2300, 2110, 1219, 2935, 
+394, 885, 2444, 2154, 1175};
+
+#define BARRETT_MU (1ULL << 32) / KYBER_Q  // BARRETT_MU é calculado com base no valor de KYBER_Q
+
+uint16_t barrett_reduce(uint32_t a) {
+    uint32_t q = (a * BARRETT_MU) >> 32;
+    a -= q * KYBER_Q;
+    if (a >= KYBER_Q) a -= KYBER_Q;
+    return a;
+}
+
+// Função para reduzir um número sob KYBER_Q
+static inline int16_t reduce(int32_t a) {
+    int16_t t = (a % KYBER_Q);
+    if (t < 0) t += KYBER_Q;
+    return t;
+}
+
+// Função para calcular a multiplicação e a redução modular
+static inline int16_t mod_mul(int16_t a, int16_t b) {
+    return reduce((int32_t)a * b);
+}
+
+// Função para redução modular
+static inline uint16_t mod(uint32_t x) {
+    uint16_t r = x % KYBER_Q;
+    return r;
+}
+
+// Transformada numérica de Theorell (NTT)
+void nttB(uint16_t r[KYBER_N]) {
+    unsigned int len, start, j, k = 0;
+    int16_t t, zeta;
+
+    for (len = 128; len >= 2; len >>= 1) {
+        for (start = 0; start < KYBER_N; start += 2 * len) {
+            zeta = zetas[k++];
+            for (j = start; j < start + len; j++) {
+                t = mod_mul(zeta, r[j + len]);
+                r[j + len] = reduce(r[j] - t);
+                r[j] = reduce(r[j] + t);
+            }
+        }
+    }
+}
+
+
+void invnttB(uint16_t f[KYBER_N]) {
+    int len, start, j, k = 126;
+    uint16_t t, zeta;
+
+    for (len = 2; len <= KYBER_N/2; len <<= 1) {
+        for (start = 0; start < KYBER_N; start += 2 * len) {
+            zeta = zetas[k--];
+            for (j = start; j < start + len; j++) {
+                t = f[j];
+                f[j] = barrett_reduce(t + f[j + len]);
+                f[j + len] = barrett_reduce(zeta * barrett_reduce(f[j + len] - t + KYBER_Q));
+            }
+        }
+    }
+
+    for (j = 0; j < KYBER_N; j++) {
+        f[j] = barrett_reduce(f[j] * 3303);  
+    }
+}
+
+
+/*
+Computes the product of two degree-one polynomials with respect to a quadratic modulus.
+Input:  a0,a1,b0,b1 ∈ Zq. ▷ the coeffcients of a0 + a1X and b0 + b1X
+Input:  γ ∈ Zq. ▷ the modulus is X^2 −γ
+Output: c0,c1 ∈ Zq. ▷ the coeffcients of the product of the two polynomials 
+*/
+// Função otimizada para multiplicação de polinômios de grau um
+static inline nt baseCaseMultiplicaB(uint16_t a0, uint16_t a1, uint16_t b0, uint16_t b1, uint16_t y) {
+    nt result;
+    result.c0 = mod(mod_mul(a0, b0) + mod_mul(mod_mul(a1, b1), y));
+    result.c1 = mod(mod_mul(a0, b1) + mod_mul(a1, b0));
+    return result;
+}
+
+
+/*
+Computes the product (in the ring Tq) of two NTT representations.
+Input:  Two arrays fˆ ∈ Zq256 and gˆ ∈ Zq256. ▷ the coeffcients of two NTT representations 
+Output: An array h^ ∈ Zq256. ▷ the coeffcients of the product of the inputs
+*/
+void multiplicaNTTB(const uint16_t f[KYBER_N], const uint16_t g[KYBER_N], uint16_t h[KYBER_N]) {       
+    for (int j=0; j<128; j++) {       
+            nt result = baseCaseMultiplicaB(f[2*j],f[2*j+1],g[2*j],g[2*j+1],zetas2[j]);
+            h[2*j] = result.c0;
+            h[2*j+1] = result.c1;
+    }
+       
+}
+
+//--------------------------------
+
+// Funções genéricas para A e B
+void exibeVetor(uint16_t vetor[KYBER_N], char* nome) {
+    printf("\n Vetor %s : \n", nome);
+    for (int i=0; i<KYBER_N; i++) {
+        printf(" %d", vetor[i]);
+    }
+    printf("\n");
+}
+
+void comparaVetores(uint16_t vetor1[KYBER_N], uint16_t vetor2[KYBER_N],char* texto ) {
+    printf("\n Comparação dos vetores %s  \n", texto);
+    for (int i=0; i<KYBER_N; i++) {
+        if (vetor1[i]!=vetor2[i]) {
+            printColor(" ERRO: Os vetores são diferentes \n",RED);
+            return;
+        }
         
-        }
     }
+    printf(" Os vetores são iguais! \n");
 }
+
+void verificaTransformada(uint16_t vetor1[KYBER_N], uint16_t vetor2[KYBER_N],char* texto ) {
+    uint8_t diferentes = 0;
+    uint16_t elementosDiferentes[KYBER_N] = {0};
+    printf("\n Verificação da transformada NTT e INVNTT do vetor %s  \n", texto);
+    for (int i=0; i<KYBER_N; i++) {
+        if (vetor1[i]!=vetor2[i]) {           
+            diferentes++;
+            elementosDiferentes[i] = vetor1[i];            
+        }        
+    }
+    if (diferentes==0) {
+        printColor(" Transformada bem-sucedida! \n",GREEN);    
+    }
+    else {
+        printf(" ERRO: Transformada realizada com %d erros !!!! \n Elementos diferentes: ",diferentes);
+        for (int i=0;i<diferentes; i++) {
+            printf(" %u", elementosDiferentes[i]);
+        }
+        printf("\n");
+    }
+    
+}
+
+
+/*********************************************************************************
+INÍCIO dos testes
+MAIN()
+*********************************************************************************/
+
 
 int main () {
     setlocale(LC_ALL, "Portuguese"); // define acentuação para língua portuguesa
 
-    uint16_t v[KYBER_K][KYBER_N];
-    uint16_t u[KYBER_K][KYBER_N];
-    uint16_t x[KYBER_K][KYBER_N];
+    uint16_t v[KYBER_N];
+    uint16_t v_temp[KYBER_N];
+    uint16_t u[KYBER_N];
+    uint16_t u_temp[KYBER_N];
+    uint16_t v_linha[KYBER_N];
+    uint16_t v_linha_temp[KYBER_N];
+    uint16_t u_linha[KYBER_N];
+    uint16_t u_linha_temp[KYBER_N];
+    uint16_t x[KYBER_N];
+    uint16_t x_linha[KYBER_N];
 
-    memset(v, 0, sizeof(v)); // Inicializa o vetor com zero
-    memset(u, 0, sizeof(v)); // Inicializa o vetor com zero
-    memset(x, 0, sizeof(v)); // Inicializa o vetor com zero
+    // Inicializa os vetores com zero
+    memset(v, 0, sizeof(v)); 
+    memset(u, 0, sizeof(u)); 
+    memset(v_linha, 0, sizeof(v_linha)); 
+    memset(u_linha, 0, sizeof(u_linha)); 
+    memset(v_temp, 0, sizeof(v_temp)); 
+    memset(u_temp, 0, sizeof(u_temp)); 
+    memset(v_linha_temp, 0, sizeof(v_linha_temp)); 
+    memset(u_linha_temp, 0, sizeof(u_linha_temp)); 
+    memset(x, 0, sizeof(x)); 
+    memset(x_linha, 0, sizeof(x_linha)); 
 
     // Armazena o valor atual retornado por time(NULL) em uma variável
     time_t seed = time(NULL);
@@ -96,45 +367,80 @@ int main () {
     // Inicializa o gerador de números aleatórios com a semente
     srand(seed);
 
-    geraDoidoElementosParaVetor(v);
-    memcpy(u, v, sizeof(v));
-    inverteElementosDoido(u);
+    for (int i = 0; i < KYBER_N; ++i) {
+        u[i] = rand() % KYBER_Q; 
+        v[i] = rand() % KYBER_Q;
+    }
 
-    printf("\n\n \x1b[36m ****************************************************************************\n"); 
-    printf("  *                                 Elementos originais  (f,g)                    * ");
-    printf("\n  **************************************************************************** \x1b[0m \n"); 
+    // Duplicando os arrays para viabilizar as comparações dos retornos das funções de NTT básica e otimizada
+    memcpy(u_linha,u,sizeof(u));
+    memcpy(v_linha,v,sizeof(v));
 
-    exibeVetor(v);
+    // Preservando os elementos originais para análise da invntt
+    memcpy(u_temp,u,sizeof(u)); 
+    memcpy(v_temp,v,sizeof(v));
+    memcpy(u_linha_temp,u_linha,sizeof(u_linha));
+    memcpy(v_linha_temp,v_linha,sizeof(v_linha));
+
+    printColor("Elementos Originais",YELLOW);
+    exibeVetor(u, "u");    
+    exibeVetor(u_linha,"u_linha");    
     printf("\n");
-    exibeVetor(u);
+    exibeVetor(v,"v");
+    exibeVetor(v_linha,"v_linha");
+    printf("======================================================================================================================================================\n");
     
-
-    printf("\n\n \x1b[32m ****************************************************************************\n"); 
-    printf("  *  Elementos no domínio Tq   (f^,g^))  * ");
-    printf("\n  **************************************************************************** \x1b[0m \n"); 
-    ntt(v);     
-    ntt(u);
-    exibeVetor(v);
-    exibeVetor(u);
-
-    printf("\n\n \x1b[29m ****************************************************************************\n"); 
-    printf("  *  Multiplicação no domínio Tq  (h^ = f^ x g^)         * ");
-    printf("\n  **************************************************************************** \x1b[0m \n"); 
-    multiplicaNTT(u,v,x);
-    exibeVetor(x);
-    
-
-    printf("\n\n \x1b[35m ****************************************************************************\n"); 
-    printf("  *  Resultado da multiplicação transformado para o domínio Rq  (InvNTT(h^))   * ");
-    printf("\n  **************************************************************************** \x1b[0m \n"); 
-    invntt(x);
-    exibeVetor(x);
-    
-   // v = [[606, 1507, 1110, 2747, 212, 32, 1723, 961, 1675, 2392, 2690, 1874, 337, 2816, 2740, 2980, 3030, 479, 3224, 556, 2228, 2463, 3298, 549, 1736, 1492, 112, 2078, 1604, 3017, 2234, 2019, 1893, 1947, 2745, 1344, 1664, 167, 249, 2637, 2546, 3248, 146, 2387, 2112, 3043, 1322, 2946, 1020, 1235, 1729, 2617, 3006, 2530, 752, 916, 457, 2782, 1594, 953, 2991, 2450, 2901, 446, 1233, 1143, 1268, 2643, 2269, 1374, 1018, 561, 835, 1644, 1590, 1662, 1085, 1400, 3287, 1336, 141, 1510, 1886, 2696, 1855, 1291, 515, 657, 2833, 1455, 172, 2632, 284, 1775, 3119, 263, 2299, 2948, 867, 1642, 519, 3151, 374, 2618, 2567, 39, 1936, 1344, 635, 1451, 3238, 466, 507, 1533, 1855, 2651, 875, 538, 3139, 1663, 2842, 1317, 1652, 718, 192, 1165, 231, 352, 922, 211, 2355, 318, 1243, 2904, 1336, 2741, 481, 218, 1099, 2327, 673, 919, 248, 2887, 2057, 1008, 298, 2992, 510, 1537, 369, 588, 372, 1424, 1173, 1001, 2412, 1377, 248, 1520, 3188, 2865, 2676, 936, 431, 2046, 2217, 1216, 1940, 1964, 1815, 1439, 409, 2334, 1979, 1315, 2126, 2666, 1589, 2327, 513, 1666, 2331, 1892, 1939, 2872, 1458, 1753, 1489, 2931, 2733, 3019, 2191, 3030, 1692, 710, 2514, 348, 786, 2219, 1227, 2399, 146, 3149, 3038, 1142, 820, 350, 1606, 2989, 1606, 460, 3114, 2765, 3060, 1755, 2104, 1818, 2700, 2134, 2764, 2496, 1180, 1143, 176, 1168, 1344, 1813, 565, 761, 2982, 1471, 1453, 1594, 2556, 1844, 56, 3128, 719, 113, 3031, 1561, 1612, 2396, 2888, 2143, 2703, 752, 16, 694, 509, 2140, 2593, 785, 3124, 11],[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255]];
-   invntt(v);
-   exibeVetor(v);
-
-  // validaTransformada(v);
+    printColor("\n Elementos no domínio Tq",GREEN);
+    // NTT Básica
+    nttA(u);
+    nttA(v); 
+    // NTT Otimizada
+    nttB(u_linha);        
+    nttB(v_linha);
+   
+    // Exibe os vetores u para comparação dos resultados da NTT Básica x NTT Otimizada
+    exibeVetor(u,"u_hat");
+    exibeVetor(u_linha,"u_linha_hat");
+    // Exibe os vetores v para comparação dos resultados da NTT Básica x NTT Otimizada
+    exibeVetor(v,"v_hat");
+    exibeVetor(v_linha,"v_linha^");
+    // Compara se os vetores são iguais após a aplicação das diferentes NTT
+    comparaVetores(u,u_linha,"u,u_linha");  
+    comparaVetores(v,v_linha,"v,v_linha");  
+    printf("======================================================================================================================================================\n");
   
+    printColor("\n Multiplicação no domínio Tq  (x^ = u^ x v^)", CYAN);
+    multiplicaNTTA(u,v,x);
+    exibeVetor(x,"x");
+    multiplicaNTTB(u_linha,v_linha,x_linha);
+    exibeVetor(x_linha,"x_linha");
+    comparaVetores(x,x_linha,"x,x_linha");  
+    printf("======================================================================================================================================================\n");
+
+    printColor("\n NTT Inversa", MAGENTA); 
+    invnttA(u);
+    invnttB(u_linha);
+
+    exibeVetor(u_temp," u ORIGINAL");
+    exibeVetor(u,"u após invNTT");
+    exibeVetor(u_linha_temp," u_linha ORIGINAL");
+    exibeVetor(u_linha,"u_linha após invNTT");
+
+    invnttA(v);
+    invnttB(v_linha);
+    exibeVetor(v,"v após invNTT");
+    exibeVetor(v_linha,"v_linha após invNTT");
+
+    printf("======================================================================================================================================================\n");
+    
+    comparaVetores(u,u_linha,"u,u_linha");  
+    comparaVetores(v,v_linha,"v,v_linha");  
+
+    printf("======================================================================================================================================================\n");
+
+    verificaTransformada(u,u_temp,"u - Função NTT Básica Original");
+    verificaTransformada(v,v_temp,"v - Função NTT Básica Original");  
+    verificaTransformada(u_linha,u_linha_temp,"u_linha - Função NTT Otimizada");   
+    verificaTransformada(v_linha,v_linha_temp,"v_linha - Função NTT Otimizada");  
    
 }

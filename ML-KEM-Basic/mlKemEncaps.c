@@ -19,14 +19,16 @@ Output: ciphertext c ∈ B32(duk+dv)
 ********************************************************************************/
 
 // Função para verificar o tamanho da chave de encapsulamento
-int isValidEncapsSize(const uint8_t* ek, size_t size) {
-    return (size == ENCAPS_SIZE);
+int isValidEncapsSize(const uint8_t* ek, size_t actual_size) {
+    if (actual_size != ENCAPS_SIZE) {
+        fprintf(stderr, "Erro: Tamanho da chave de encapsulamento inválido. Recebido: %zu, Esperado: %d\n", actual_size, ENCAPS_SIZE);
+        return 0; // Retorna 0 em caso de erro
+    }
+    return 1; // Retorna 1 se o tamanho for válido
 }
 
-encaps mlKemEncaps(uint8_t encapsKey[384*KYBER_K+32]) {
-    // Verifica se o tamanho da chave de encapsulamento é válido
-    if (!isValidEncapsSize(encapsKey, ENCAPS_SIZE)) {
-        fprintf(stderr, "Erro: Tamanho da chave de encapsulamento inválido.\n");
+encaps mlKemEncaps(uint8_t* encapsKey, size_t size) {
+    if (!isValidEncapsSize(encapsKey, size)) {
         exit(EXIT_FAILURE);
     }
 

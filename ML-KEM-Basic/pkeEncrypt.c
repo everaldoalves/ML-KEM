@@ -22,6 +22,7 @@ Input: encryption randomness r ∈ B^32.
 Output: ciphertext c ∈ B^32(duk+dv)
 ********************************************************************************/
 
+/*
 void calculaU(uint16_t A[KYBER_K][KYBER_K][KYBER_N], uint16_t r_hat[KYBER_K][KYBER_N], uint16_t e1[KYBER_K][KYBER_N], uint16_t u[KYBER_K][KYBER_N]) {
     uint16_t tempResultado[KYBER_K][KYBER_N] = {{0}};
     uint16_t tempMultiplicacao[KYBER_N] = {0}; 
@@ -46,6 +47,77 @@ void calculaU(uint16_t A[KYBER_K][KYBER_K][KYBER_N], uint16_t r_hat[KYBER_K][KYB
     }
     
 }
+*/
+void calculaU(uint16_t A[KYBER_K][KYBER_K][KYBER_N], uint16_t r_hat[KYBER_K][KYBER_N], uint16_t e1[KYBER_K][KYBER_N], uint16_t u[KYBER_K][KYBER_N]) {
+    uint16_t tempResultado[KYBER_K][KYBER_N] = {{0}};
+
+    // Computar a matriz U usando multiplicação e soma otimizada
+    for (int i = 0; i < KYBER_K; ++i) {
+        for (int k = 0; k < KYBER_K; ++k) {
+            uint16_t tempMultiplicacao[KYBER_N];
+            multiplicaNTT(A[k][i], r_hat[k], tempMultiplicacao);
+
+            for (int n = 0; n < KYBER_N; ++n) {
+                tempResultado[i][n] += tempMultiplicacao[n];
+                if (tempResultado[i][n] >= KYBER_Q) {  // Reduzir a frequência de operações módulo
+                    tempResultado[i][n] -= KYBER_Q;
+                }
+            }
+        }
+
+        // Aplicar a inversa NTT e somar e1 diretamente aqui para evitar loops extras
+        invntt(tempResultado[i]);
+        for (int n = 0; n < KYBER_N; ++n) {
+            u[i][n] = (tempResultado[i][n] + e1[i][n]) % KYBER_Q;
+        }
+    }
+}
+
+void calculaUBarretReduce(uint16_t A[KYBER_K][KYBER_K][KYBER_N], uint16_t r_hat[KYBER_K][KYBER_N], uint16_t e1[KYBER_K][KYBER_N], uint16_t u[KYBER_K][KYBER_N]) {
+    u_int16_t tempResultado[KYBER_K][KYBER_N] = {{0}};
+
+    for (int i = 0; i < KYBER_K; ++i) {
+        for (int k = 0; k < KYBER_K; ++k) {
+            u_int16_t tempMultiplicacao[KYBER_N];
+            multiplicaNTT(A[k][i], r_hat[k], tempMultiplicacao);
+
+            for (int n = 0; n < KYBER_N; ++n) {
+                u_int32_t sum = tempResultado[i][n] + tempMultiplicacao[n];
+                tempResultado[i][n] = barrett_reduce1(sum);  // Aplicando barrett_reduce aqui
+            }
+        }
+
+        invntt(tempResultado[i]);
+        for (int n = 0; n < KYBER_N; ++n) {
+            u[i][n] = barrett_reduce1(tempResultado[i][n] + e1[i][n]);  // Redução final após soma
+        }
+    }
+}
+
+
+
+void calculaUOLD(uint16_t A[KYBER_K][KYBER_K][KYBER_N], uint16_t r_hat[KYBER_K][KYBER_N], uint16_t e1[KYBER_K][KYBER_N], uint16_t u[KYBER_K][KYBER_N]) {
+    uint16_t tempResultado[KYBER_K][KYBER_N] = {{0}};
+    uint16_t tempMultiplicacao[KYBER_N] = {0}; 
+
+    // Computar a matriz U usando a multiplicação e a soma otimizada
+    for (int i = 0; i < KYBER_K; ++i) {
+        for (int k = 0; k < KYBER_K; ++k) {            
+            multiplicaNTT(A[k][i], r_hat[k], tempMultiplicacao);
+            // Soma os resultados diretamente em tempResultado após a multiplicação
+            for (int n = 0; n < KYBER_N; ++n) {
+                tempResultado[i][n] = (tempResultado[i][n] + tempMultiplicacao[n]) % KYBER_Q;
+            }
+        }
+
+        // Aplicar a inversa NTT e somar e1 diretamente aqui para evitar loops extras
+        invntt(tempResultado[i]);
+        for (int n = 0; n < KYBER_N; ++n) {
+            u[i][n] = (tempResultado[i][n] + e1[i][n]) % KYBER_Q;
+        }
+    }
+}
+
 
 
 void calculaV(uint16_t t_hat[KYBER_K][KYBER_N], uint16_t r_vector[KYBER_K][KYBER_N], uint16_t e2[KYBER_N], uint16_t mu[KYBER_N], uint16_t v[KYBER_N]) {
@@ -84,7 +156,7 @@ void decompressMu(const uint8_t *m, uint16_t mu[KYBER_N]) {
     }
 }
 
-
+/*
 void generateRandomVectors(const uint8_t *r, uint16_t r_vector[KYBER_K][KYBER_N], uint16_t e1[KYBER_K][KYBER_N], uint16_t e2[KYBER_N], uint8_t N) {
     unsigned char prfOutput_eta1[64 * KYBER_ETA1]; // Buffer para a saída da PRFn1
     unsigned char prfOutput_eta2[64 * KYBER_ETA2]; // Buffer para a saída da PRFn2
@@ -105,6 +177,26 @@ void generateRandomVectors(const uint8_t *r, uint16_t r_vector[KYBER_K][KYBER_N]
     memset(prfOutput_eta2,0,64*KYBER_ETA2); // resetando o output
     PRF(KYBER_ETA2, r, N, prfOutput_eta2);
     samplePolyCBD(prfOutput_eta2, e2, KYBER_ETA2);  
+}
+*/
+
+void generateRandomVectors(const uint8_t *r, uint16_t r_vector[KYBER_K][KYBER_N], uint16_t e1[KYBER_K][KYBER_N], uint16_t e2[KYBER_N], uint8_t N) {
+    unsigned char prfOutput[64 * KYBER_ETA1 * KYBER_K + 64 * KYBER_ETA2 * (KYBER_K + 1)]; // Buffer grande o suficiente para todas as saídas
+
+    // Geração de todas as saídas PRF em uma única chamada para cada tipo de ETA
+    PRF(KYBER_ETA1, r, N, prfOutput);
+    N += KYBER_K; // Atualizar N após usar KYBER_K vezes ETA1
+    PRF(KYBER_ETA2, r, N, prfOutput + 64 * KYBER_ETA1 * KYBER_K); // Usa offset apropriado
+    N += KYBER_K; // Atualizar N novamente
+
+    // Geração de r_vector e e1
+    for (int i = 0; i < KYBER_K; i++) {
+        samplePolyCBD_neon(prfOutput + i * 64 * KYBER_ETA1, r_vector[i], KYBER_ETA1);
+        samplePolyCBD_neon(prfOutput + 64 * KYBER_ETA1 * KYBER_K + i * 64 * KYBER_ETA2, e1[i], KYBER_ETA2);
+    }
+
+    // Geração de e2 usando a última parte do buffer de PRF
+    samplePolyCBD_neon(prfOutput + 64 * KYBER_ETA1 * KYBER_K + 64 * KYBER_ETA2 * KYBER_K, e2, KYBER_ETA2);
 }
 
 
@@ -171,19 +263,16 @@ void pkeEncrypt(const uint8_t *ekPKE, const uint8_t *m, const uint8_t *r, uint8_
     // Passo 3: Extração de rho
     memcpy(rho, ekPKE + 384 * KYBER_K, 32);
     
+    /*
     // Passo 4-8: Geração da matriz A
-    for (uint8_t i = 0; i < KYBER_K; i++) {        
-        for (uint8_t j = 0; j < KYBER_K; j++) {       
-           memset(md, 0, sizeof(md));              // Reseta o vetor md                                  
-           XOF(rho, j, i, md);               
-           memset(a_hat, 0, sizeof(a_hat));      // Reinicializa a_hat para garantir que seja único em cada iteração
-           sampleNTT(md, a_hat);                // Preenche a_hat com os coeficientes NTT                                                        
-           for (int k=0; k < KYBER_N; k++) {                         
-                // Copia a_hat para a terceira dimensão da matriz A
-                A[i][j][k] = a_hat[k];                               
-           }            
-        }
-    }  
+    for (uint8_t i=0; i < KYBER_K; i++) {                     
+        for (uint8_t j=0; j < KYBER_K; j++) {                         
+           XOF(rho, j, i, md);                         
+           sampleNTT(md, A[i][j]);                              
+        }    
+    }
+    */
+   geraMatrizAOtimizada(rho,A);
 
    // Uso da função generateRandomVectors para gerar r_vector, e1, e2
     generateRandomVectors(r, r_vector, e1, e2, 0); // N inicializado como 0
