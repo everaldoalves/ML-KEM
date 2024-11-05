@@ -1,0 +1,22 @@
+Benchmark Summary for KYBER
+Function                            Time (512)                Ciclos (512)              Time (768)                Ciclos (768)              Time (1024)               Ciclos (1024)            
+BM_gen_matrix                       3545                      85                        7999                      191                       14262                     342                      
+BM_poly_getnoise_eta1               576                       13                        417                       9                         417                       10                       
+BM_poly_getnoise_eta2               417                       9                         418                       10                        418                       10                       
+BM_poly_ntt                         1006                      24                        1006                      24                        1019                      24                       
+BM_poly_invntt_tomont               1590                      38                        1590                      38                        1603                      38                       
+BM_polyvec_basemul_acc_montgomery   1378                      33                        2004                      48                        2642                      63                       
+BM_poly_tomsg                       40.8                      0                         40.8                      0                         40.8                      0                        
+BM_poly_frommsg                     176                       4                         186                       4                         176                       4                        
+BM_poly_compress                    53.7                      1                         53.7                      1                         60.5                      1                        
+BM_poly_decompress                  16.9                      0                         16.9                      0                         48.1                      1                        
+BM_polyvec_compress                 149                       3                         223                       5                         563                       13                       
+BM_polyvec_decompress               118                       2                         176                       4                         501                       11                       
+BM_indcpa_keypair_derand            14214                     341                       24946                     598                       39409                     945                      
+BM_indcpa_enc                       18479                     443                       30387                     729                       46277                     1.11k                    
+BM_indcpa_dec                       5589                      134                       7300                      175                       9514                      228                      
+BM_crypto_kem_keypair_derand        15753                     378                       27317                     655                       42929                     1.03k                    
+BM_crypto_kem_keypair               17929                     430                       30971                     743                       48795                     1.171k                   
+BM_crypto_kem_enc_derand            20572                     493                       33612                     806                       48965                     1.175k                   
+BM_crypto_kem_enc                   21253                     510                       33872                     812                       49755                     1.194k                   
+BM_crypto_kem_dec                   27532                     660                       42432                     1.018k                    61413                     1.473k                   

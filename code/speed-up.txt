@@ -1,0 +1,2 @@
+Speed-Up Summary for KYBER
+Function                            512-Ref         512-Opt         Aceleração    768-Ref         768-Opt         Aceleração    1024-Ref        1024-Opt        Aceleração   

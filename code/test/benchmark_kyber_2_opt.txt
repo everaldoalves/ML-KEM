@@ -1,0 +1,23 @@
+--------------------------------------------------------------------------------------------
+Benchmark                                  Time             CPU   Iterations UserCounters...
+--------------------------------------------------------------------------------------------
+BM_gen_matrix                           1592 ns         1588 ns       439867 Ciclos=38
+BM_poly_getnoise_eta1                    449 ns          448 ns      1561897 Ciclos=10
+BM_poly_getnoise_eta2                    357 ns          349 ns      2023619 Ciclos=8
+BM_poly_ntt                              332 ns          331 ns      2137848 Ciclos=7
+BM_poly_invntt_tomont                    424 ns          423 ns      1656033 Ciclos=10
+BM_polyvec_basemul_acc_montgomery        310 ns          309 ns      2264295 Ciclos=7
+BM_poly_tomsg                           40.7 ns         40.6 ns     17219918 Ciclos=0
+BM_poly_frommsg                          176 ns          176 ns      3984699 Ciclos=4
+BM_poly_compress                        53.7 ns         53.6 ns     13055317 Ciclos=1
+BM_poly_decompress                      16.9 ns         16.9 ns     41491071 Ciclos=0
+BM_polyvec_compress                      149 ns          149 ns      4707370 Ciclos=3
+BM_polyvec_decompress                    118 ns          118 ns      5919662 Ciclos=2
+BM_indcpa_keypair_derand                5758 ns         5744 ns       121583 Ciclos=138
+BM_indcpa_enc                           6903 ns         6886 ns       101467 Ciclos=165
+BM_indcpa_dec                           1653 ns         1649 ns       422800 Ciclos=39
+BM_crypto_kem_keypair_derand            6942 ns         6929 ns       100901 Ciclos=166
+BM_crypto_kem_keypair                   8988 ns         8962 ns        77893 Ciclos=215
+BM_crypto_kem_enc_derand                8506 ns         8481 ns        82533 Ciclos=204
+BM_crypto_kem_enc                       9170 ns         9146 ns        76433 Ciclos=220
+BM_crypto_kem_dec                      11474 ns        11451 ns        61059 Ciclos=275
