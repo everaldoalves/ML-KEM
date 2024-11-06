@@ -5,7 +5,7 @@
 Implementação do mecanismo de encapsulamento de chaves pós-quântico Module-Lattice-Key Encapsulation Mechanism - ML-KEM (FIPS 203) para plataforma ARMv8-A.
 
 ## Instruções de compilação
-A implementação contêm programas de teste e benchmarking e um Makefile para facilitar a compilação.
+A implementação contém programas de teste e benchmarking, bem como um Makefile para facilitar a compilação.
 
 ### Pré-requisitos
 
@@ -46,7 +46,6 @@ onde $ALG varia sobre os conjuntos de parâmetros 512, 768 e 1024.
 
 test/test_kyber$ALG testa 1000 vezes o processo de gerar chaves, encapsular uma chave aleatória e desencapsulá-la corretamente novamente. Além disso, o programa testa se as chaves não podem ser desencapsuladas corretamente usando uma chave secreta aleatória ou um texto cifrado onde um único byte aleatório foi distorcido aleatoriamente para testar falhas triviais da segurança CCA. O programa abortará com uma mensagem de erro e retornará 1 se houver um erro. Caso contrário, ele emitirá os tamanhos da chave e do texto cifrado e retornará 0.
 
-Também é possível verificar a assertividade da implementação com o script testaDilithium.sh. Este script realizará testes de geração de chaves, assinatura e verificação exibindo os resultados para cada uma das versões do esquema.
 
 ## Programas de Benchmarking
 Para realizar o benchmarking da implementação, estão disponíveis os programas de teste de velocidade para CPUs x86 que usam o Time Step Counter (TSC) ou o contador de ciclos real fornecido pelos Performance Measurement Counters (PMC) para medir o desempenho. Para compilar os programas, execute:
