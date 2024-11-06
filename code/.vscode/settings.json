@@ -1,8 +1,0 @@
-{
-    "files.associations": {
-        "locale": "cpp",
-        "assert.h": "c",
-        "iostream": "cpp",
-        "string.h": "c"
-    }
-}
