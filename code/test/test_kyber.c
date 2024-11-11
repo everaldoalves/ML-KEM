@@ -3,6 +3,7 @@
 #include <string.h>
 #include "../kem.h"
 #include "../randombytes.h"
+#include "../feat_dit.h"
 
 #define NTESTS 1000
 
@@ -96,6 +97,9 @@ static int test_invalid_ciphertext(void)
 
 int main(void)
 {
+  
+  set_dit_bit();
+
   unsigned int i;
   int r;
 

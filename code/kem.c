@@ -7,6 +7,7 @@
 #include "verify.h"
 #include "symmetric.h"
 #include "randombytes.h"
+
 /*************************************************
 * Name:        crypto_kem_keypair_derand
 *
@@ -50,7 +51,7 @@ int crypto_kem_keypair_derand(uint8_t *pk,
 int crypto_kem_keypair(uint8_t *pk,
                        uint8_t *sk)
 {
-  uint8_t coins[2*KYBER_SYMBYTES];
+  uint8_t coins[2*KYBER_SYMBYTES];      //64 bytes ( 32 para d e 32 para z )
   randombytes(coins, 2*KYBER_SYMBYTES);
   crypto_kem_keypair_derand(pk, sk, coins);
   return 0;

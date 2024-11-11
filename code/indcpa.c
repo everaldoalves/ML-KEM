@@ -172,7 +172,8 @@ static unsigned int rej_uniform(int16_t *r, unsigned int len, const uint8_t *buf
 #error "Implementation of gen_matrix assumes that XOF_BLOCKBYTES is a multiple of 3"
 #endif
 
-#define GEN_MATRIX_NBLOCKS ((12*KYBER_N/8*(1 << 12)/KYBER_Q + XOF_BLOCKBYTES)/XOF_BLOCKBYTES)
+#define GEN_MATRIX_NBLOCKS ((12*KYBER_N/8*(1 << 12)/KYBER_Q + XOF_BLOCKBYTES)/XOF_BLOCKBYTES) // Essa linha tem o propósito de calcular o número de blocos necessários para preencher a matriz A. Blocos são preenchidos com 3 polinômios de 256 coeficientes cada, ou seja, 768 coeficientes por bloco. 
+//O número de blocos é calculado dividindo o número de coeficientes da matriz A pelo número de coeficientes que cabem em um bloco, e somando o número de blocos necessários para preencher a matriz com um número inteiro de blocos.
 
 static void xof_absorb2x(keccakx2_state *state,
                   const uint8_t seed[KYBER_SYMBYTES],

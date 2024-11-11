@@ -310,7 +310,8 @@ void basemul_neon(int16_t r[8], const int16_t a[8], const int16_t b[8], int16_t 
     int16x4_t reduced_vals = montgomery_reduce_neon_4(intermediates);
 
     // Multiplicação com zetas    
-    int16x4_t zeta_vals = {zeta, -zeta, zeta_next, -zeta_next};
+    //int16x4_t zeta_vals = {zeta, -zeta, zeta_next, -zeta_next};
+    int16x4_t zeta_vals = {zeta,static_cast<int16_t>(-zeta), zeta_next,static_cast<int16_t>(-zeta_next)};
     int32x4_t final_intermediates = vmull_s16(reduced_vals, zeta_vals);
 
     // Realiza a segunda redução Montgomery em paralelo nos produtos com zeta

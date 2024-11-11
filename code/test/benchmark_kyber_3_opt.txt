@@ -1,23 +1,23 @@
 --------------------------------------------------------------------------------------------
 Benchmark                                  Time             CPU   Iterations UserCounters...
 --------------------------------------------------------------------------------------------
-BM_gen_matrix                           6292 ns         6273 ns       111238 Ciclos=150
-BM_poly_getnoise_eta1                    347 ns          346 ns      2024514 Ciclos=8
-BM_poly_getnoise_eta2                    347 ns          346 ns      1951481 Ciclos=8
-BM_poly_ntt                              330 ns          329 ns      2098409 Ciclos=7
-BM_poly_invntt_tomont                    425 ns          423 ns      1654232 Ciclos=10
-BM_polyvec_basemul_acc_montgomery        458 ns          457 ns      1535630 Ciclos=10
-BM_poly_tomsg                           40.8 ns         40.7 ns     17236497 Ciclos=0
-BM_poly_frommsg                          178 ns          177 ns      3907886 Ciclos=4
-BM_poly_compress                        54.5 ns         54.2 ns     13055074 Ciclos=1
-BM_poly_decompress                      16.9 ns         16.9 ns     41495498 Ciclos=0
-BM_polyvec_compress                      224 ns          223 ns      3123884 Ciclos=5
-BM_polyvec_decompress                    176 ns          175 ns      3993542 Ciclos=4
-BM_indcpa_keypair_derand               12355 ns        12331 ns        57208 Ciclos=296
-BM_indcpa_enc                          13837 ns        13808 ns        50455 Ciclos=332
-BM_indcpa_dec                           2238 ns         2233 ns       314083 Ciclos=53
-BM_crypto_kem_keypair_derand           14007 ns        13972 ns        50589 Ciclos=336
-BM_crypto_kem_keypair                  17720 ns        17673 ns        39673 Ciclos=425
-BM_crypto_kem_enc_derand               21078 ns        17030 ns        44095 Ciclos=505
-BM_crypto_kem_enc                      16559 ns        16495 ns        42767 Ciclos=397
-BM_crypto_kem_dec                      20376 ns        20279 ns        34591 Ciclos=489
+BM_gen_matrix                           6927 ns         6908 ns       101190 Ciclos=166
+BM_poly_getnoise_eta1                    334 ns          333 ns      2096241 Ciclos=8
+BM_poly_getnoise_eta2                    334 ns          333 ns      2102052 Ciclos=8
+BM_poly_ntt                              404 ns          403 ns      1744674 Ciclos=9
+BM_poly_invntt_tomont                    432 ns          430 ns      1626473 Ciclos=10
+BM_polyvec_basemul_acc_montgomery        455 ns          453 ns      1548590 Ciclos=10
+BM_poly_tomsg                           39.8 ns         39.7 ns     17654031 Ciclos=0
+BM_poly_frommsg                          179 ns          179 ns      3981186 Ciclos=4
+BM_poly_compress                        51.5 ns         51.4 ns     13597778 Ciclos=1
+BM_poly_decompress                      22.3 ns         22.1 ns     32014342 Ciclos=0
+BM_polyvec_compress                      470 ns          469 ns      1482109 Ciclos=11
+BM_polyvec_decompress                    284 ns          283 ns      2469998 Ciclos=6
+BM_indcpa_keypair_derand               13286 ns        13255 ns        52809 Ciclos=318
+BM_indcpa_enc                          14934 ns        14901 ns        46918 Ciclos=358
+BM_indcpa_dec                           2523 ns         2517 ns       277821 Ciclos=60
+BM_crypto_kem_keypair_derand           14876 ns        14828 ns        47179 Ciclos=357
+BM_crypto_kem_keypair                  18755 ns        18698 ns        37443 Ciclos=450
+BM_crypto_kem_enc_derand               16844 ns        16799 ns        41645 Ciclos=404
+BM_crypto_kem_enc                      17522 ns        17476 ns        40065 Ciclos=420
+BM_crypto_kem_dec                      21410 ns        21359 ns        32804 Ciclos=513

@@ -10,6 +10,7 @@
 #include "../randombytes.h"
 #include "cpucycles.h"
 #include "speed_print.h"
+#include "../feat_dit.h"
 
 #define NTESTS 1000
 
@@ -18,6 +19,9 @@ uint8_t seed[KYBER_SYMBYTES] = {0};
 
 int main(void)
 {
+
+  set_dit_bit();
+
   unsigned int i;
   uint8_t pk[CRYPTO_PUBLICKEYBYTES];
   uint8_t sk[CRYPTO_SECRETKEYBYTES];

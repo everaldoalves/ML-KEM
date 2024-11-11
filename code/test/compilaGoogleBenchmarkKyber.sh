@@ -14,7 +14,7 @@ do
     echo -e "\n\nCompilando e executando benchmark para KYBER versão $VERSION\n"
 
     # Definir o KYBER_MODE, compilar e suprimir warnings com a flag -w
-    g++ -O3 -w -std=c++11 -DKYBER_K=$VERSION -I /opt/homebrew/include googleBenchmarkKyber.cpp ../kem.c ../indcpa.c ../poly.c ../polyvec.c ../cbd.c ../reduce.c ../verify.c ../randombytes.c ../ntt.c ../fips202.c ../fips202x2.c ../feat.S ../symmetric-shake.c -L /opt/homebrew/lib -lbenchmark -lpthread -o googleBenchmarkKyber_mode$VERSION
+    g++ -O3 -w -std=c++11 -DKYBER_K=$VERSION -I /opt/homebrew/include googleBenchmarkKyber.cpp ../kem.c ../indcpa.c ../poly.c ../polyvec.c ../cbd.c ../reduce.c ../verify.c ../randombytes.c ../ntt.c ../fips202.c ../fips202x2.c ../feat.S ../symmetric-shake.c ../feat_dit.c -L /opt/homebrew/lib -lbenchmark -lpthread -o googleBenchmarkKyber_mode$VERSION
 
     # Executar o benchmark e salvar a saída no arquivo temporário com sufixo _opt
     ./googleBenchmarkKyber_mode$VERSION | tee benchmark_kyber_${VERSION}_opt.txt
